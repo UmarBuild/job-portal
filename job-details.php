@@ -748,6 +748,9 @@ white-space: nowrap;
             <div class="jd-company-name">
               <i class="bi bi-buildings"></i> <?php echo $jobs['company']; ?> 
             </div>
+            <div>
+              <a href="/job-portal/company.php?id=<?php echo $jobs['user_id']; ?>" class="btn-apply-now">View Company</a>
+            </div>
           </div>
 
           <div class="jd-meta-chips">

@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Jul 07, 2026 at 07:34 AM
+-- Generation Time: Jul 12, 2026 at 03:02 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -145,7 +145,10 @@ INSERT INTO `saved_jobs` (`id`, `user_id`, `job_id`) VALUES
 (10, 2, 17),
 (12, 1, 17),
 (13, 1, 7),
-(14, 1, 11);
+(14, 1, 11),
+(15, 1, 14),
+(16, 29, 15),
+(17, 29, 16);
 
 -- --------------------------------------------------------
 
@@ -164,19 +167,34 @@ CREATE TABLE `users` (
   `skills` text DEFAULT NULL,
   `experience` varchar(100) DEFAULT NULL,
   `cv_file` varchar(255) DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `company_name` varchar(150) DEFAULT NULL,
+  `company_logo` varchar(255) DEFAULT NULL,
+  `company_website` varchar(255) DEFAULT NULL,
+  `company_email` varchar(150) DEFAULT NULL,
+  `company_phone` varchar(30) DEFAULT NULL,
+  `industry` varchar(100) DEFAULT NULL,
+  `company_size` varchar(50) DEFAULT NULL,
+  `founded_year` year(4) DEFAULT NULL,
+  `city` varchar(100) DEFAULT NULL,
+  `address` text DEFAULT NULL,
+  `about_company` text DEFAULT NULL,
+  `linkedin` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
 --
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`id`, `fullname`, `profile_image`, `email`, `password`, `role`, `bio`, `skills`, `experience`, `cv_file`, `created_at`) VALUES
-(1, 'Muhammad ali ', '1783395286Screenshot (1).png', 'alihussain@gmail.com', '$2y$10$JQqXfm4TPBPFuM0j1URHvuk6FvnqbJENnAHeyqhgnOz9Yp9BqNAv.', 'applicant', 'i am muhammad ali khan  !', 'Full Stack Developer And Also a freelancer too !', '2 years', '1783395446Application_Class11_Books.docx', '2026-07-07 04:43:22'),
-(2, 'Hammad Khalid', '1783129551pngtree-man-employed-smile-png-image_6594014.png', 'hammad@gmail.com', '$2y$10$uxXpFVohQ.Ebc826B0T6f.wkzwa0AdLEV/zrdue4DeEBPetLdN1.a', 'employer', 'I am Hammad Khalid', 'I have learnt react laravel php javascript css html ', '3+ years', '1783129551com.android.vending_Screenshot_2026.04.15_16.49.24.jpeg', '2026-07-04 01:45:51'),
-(3, 'Syed Abbas Ansari', '1783300971Screenshot (95).png', 'umar@gmail.com', '$2y$10$MD9svgK9fmxAcsiuhxx.CepCuJJJaLy3wZIh.B93K.JPcuhjN28T.', 'employer', 'i am abbas ansari', 'Adboe Photoshop', '2 years', '1783300971Screenshot (96).png', '2026-07-06 01:22:51'),
-(12, 'Muhammad Umar', 'user.png', 'mu10164838@gmail.com', '$2y$10$FWLUpBQabgPRKrp7cTZVRu469TULHhAY8VxrFaHQnBUDObrLahAsu', 'admin', NULL, NULL, NULL, NULL, '2026-07-07 04:02:26'),
-(25, 'Hadi', 'user.png', 'tornadoshot28@gmail.com', '$2y$10$AS4/Fn0/agLCxaVrgIj/XuCEF9zW8oVAqPRKbqmgJSNHT3bdxWzpy', 'employer', NULL, NULL, NULL, NULL, '2026-07-07 02:15:46');
+INSERT INTO `users` (`id`, `fullname`, `profile_image`, `email`, `password`, `role`, `bio`, `skills`, `experience`, `cv_file`, `created_at`, `company_name`, `company_logo`, `company_website`, `company_email`, `company_phone`, `industry`, `company_size`, `founded_year`, `city`, `address`, `about_company`, `linkedin`) VALUES
+(1, 'Muhammad ali ', '1783395286Screenshot (1).png', 'alihussain@gmail.com', '$2y$10$AT7IAxrqazsvnTd0rqtErepKAaA3nwv3NUIN4LRvkD2IF3oaVnBlK', 'applicant', 'i am muhammad ali khan  !', 'Full Stack Developer And Also a freelancer too !', '2 years', '1783395446Application_Class11_Books.docx', '2026-07-07 09:49:20', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(2, 'Hammad Khalid', '1783129551pngtree-man-employed-smile-png-image_6594014.png', 'hammad@gmail.com', '$2y$10$uxXpFVohQ.Ebc826B0T6f.wkzwa0AdLEV/zrdue4DeEBPetLdN1.a', 'employer', 'I am Hammad Khalid', 'I have learnt react laravel php javascript css html ', '3+ years', '1783129551com.android.vending_Screenshot_2026.04.15_16.49.24.jpeg', '2026-07-04 01:45:51', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(3, 'Syed Abbas Ansari', '1783300971Screenshot (95).png', 'umar@gmail.com', '$2y$10$MD9svgK9fmxAcsiuhxx.CepCuJJJaLy3wZIh.B93K.JPcuhjN28T.', 'employer', 'i am abbas ansari', 'Adboe Photoshop', '2 years', '1783300971Screenshot (96).png', '2026-07-06 01:22:51', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(12, 'Muhammad Umar', 'user.png', 'mu10164838@gmail.com', '$2y$10$FWLUpBQabgPRKrp7cTZVRu469TULHhAY8VxrFaHQnBUDObrLahAsu', 'admin', NULL, NULL, NULL, NULL, '2026-07-07 04:02:26', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(25, 'Hadi', 'user.png', 'tornadoshot28@gmail.com', '$2y$10$AS4/Fn0/agLCxaVrgIj/XuCEF9zW8oVAqPRKbqmgJSNHT3bdxWzpy', 'employer', NULL, NULL, NULL, NULL, '2026-07-07 02:15:46', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(27, 'Ahmed', 'user.png', 'ahmed@gmail.com', '$2y$10$1FJnCpXn97lD7lB3F3OsCOduxNB6JOAwlBtAsFF6d2cJV8wrZDjye', 'employer', NULL, NULL, NULL, NULL, '2026-07-12 08:28:51', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(28, 'asad', 'user.png', 'asad@gmail.com', '$2y$10$T/4jPltPECRiAm2jghtNZeAAHuL/xTasjfoeGw0hbv7KG/rQe.ajm', 'employer', NULL, NULL, NULL, NULL, '2026-07-12 08:54:55', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(29, 'anique sheikh', 'user.png', 'anique@gmail.com', '$2y$10$3XmyLfSh9y7ktooQqxjQX.mxjMdsjrIc34t7Pb.LU0hTH3FhHt5im', 'applicant', NULL, NULL, NULL, NULL, '2026-07-12 08:56:29', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 
 --
 -- Indexes for dumped tables
@@ -239,7 +257,7 @@ ALTER TABLE `categories`
 -- AUTO_INCREMENT for table `contact_messages`
 --
 ALTER TABLE `contact_messages`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `jobs`
@@ -251,13 +269,13 @@ ALTER TABLE `jobs`
 -- AUTO_INCREMENT for table `saved_jobs`
 --
 ALTER TABLE `saved_jobs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
 
 --
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=30;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

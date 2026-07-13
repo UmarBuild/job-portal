@@ -7,7 +7,7 @@ $error = ""; // yahan hum error message store karenge, jo form ke upar dikhega
 if (isset($_POST['login'])) {
     $email = $_POST["email"];
     $password = $_POST["password"];
-    $role = $_POST["role"];
+    $role = strtolower($_POST["role"]);
 
     $check = "select * from users where email = '$email' ";
     $result = mysqli_query($conn, $check);
@@ -17,19 +17,19 @@ if (isset($_POST['login'])) {
 
         if (password_verify($password, $user['password'])) {
 
-            if ($role == $user['role']) {
+            if (strtolower($role) == strtolower($user['role'])) {
 
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['user_name'] = $user['fullname'];
                 $_SESSION['role'] = $user['role'];
-
-                if ($role == "employer") {
+$lowerrole = strtolower($role);
+                if ($lowerrole == "employer") {
                     header("Location: ../job-portal/employer/employerDashboard.php");
                     exit();
-                } elseif ($role == "applicant") {
+                } elseif ($lowerrole == "applicant") {
                     header("Location: ../job-portal/applicant/applicantDashboard.php");
                     exit();
-                } elseif ($role == "admin") {
+                } elseif ($lowerrole == "admin") {
                     header("Location: ../job-portal/admin/Dashboard.php");
                     exit();
                 }

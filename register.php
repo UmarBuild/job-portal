@@ -6,7 +6,7 @@ if (isset($_POST['register'])) {
   $email = $_POST["email"];
     $password = $_POST["password"];
     $confirm_password = $_POST["confirm_password"];
-    $role = $_POST["role"];
+    $role = strtolower($_POST["role"]);
     if ($password != $confirm_password) {
       echo "Password does not match";
       } else {

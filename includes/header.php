@@ -62,6 +62,7 @@
             <li><a href="/job-portal/employer/employer-applications.php">Applications</a></li>
             <li><a href="/job-portal/employer/add-manage-jobs.php">Manage Jobs</a></li>
             <li><a href="/job-portal/employer/employerDashboard.php">Dashboard</a></li>
+            <li><a href="/job-portal/employer/company-profile.php">Profile</a></li>
             <li><a href="/job-portal/about.php">About</a></li>
             <li><a href="/job-portal/contact.php">Contact</a></li>
           <?php } ?>

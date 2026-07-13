@@ -1086,8 +1086,9 @@ echo "There Is An Error In Search Query". mysqli_error($conn);
                 <a href="/job-portal/job-details.php?id=<?php echo $jobs['id'] ?>" class="btn-view-details">
                   View Details <i class="bi bi-arrow-right"></i>
                 </a>
+                <a href="/job-portal/company.php?id=<?php echo $jobs['user_id']; ?>" class="btn-view-details">View Company</a>
               </div>
-            </div>
+            </div>         
           </div>
         <?php } ?>
       </div><!-- /Row -->
