@@ -6,9 +6,9 @@ $userid = $_SESSION['user_id'] ;
 header("Location: login.php");
   };
 $id = $_GET['id'] ; 
-$showquery = "select * from jobs where id=$id" ; 
+$showquery = "select *,users.company_logo from jobs inner join users on jobs.user_id = users.id where jobs.id=$id" ; 
 $result = mysqli_query($conn , $showquery) ; 
-$jobs = mysqli_fetch_assoc($result) ; 
+$jobs = mysqli_fetch_assoc($result) ;  
 $namequery = " select users.fullname from jobs inner join users on jobs.user_id = users.id where jobs.id = $id; " ;  
 $nameResult = mysqli_query($conn , $namequery) ; 
 $name = mysqli_fetch_assoc($nameResult) ;   
@@ -738,7 +738,13 @@ white-space: nowrap;
       </a>
 
       <div class="jd-hero-inner">
-        <div class="jd-company-logo" style="background: linear-gradient(135deg, #dbeafe, #bfdbfe);">🖥️</div>
+        <div class="jd-company-logo"  style="background: #f1f5f9;">
+           <?php if (!empty($jobs['company_logo'])) { ?>
+                        <img src="uploads/company_logos/<?php echo $jobs['company_logo']; ?>" width="70" height="70" style="object-fit:cover; border-radius:5px;">
+                    <?php } else { ?>
+                        <img src="assets/img/default_company.png" width="70" height="70" style="object-fit:cover; border-radius:5px;">
+                    <?php } ?>
+        </div>
 
         <div class="jd-hero-content">
           <div class="jd-featured-badge"><i class="bi bi-star-fill"></i> Posted By :  <?php  echo $name['fullname'] ;   ?></div> 
@@ -754,9 +760,7 @@ white-space: nowrap;
           </div>
 
           <div class="jd-meta-chips">
-            <span class="jd-chip full"><i class="bi bi-briefcase"></i> Full-Time</span>
-            <span class="jd-chip remote"><i class="bi bi-wifi"></i> Remote</span>
-            <span class="jd-chip senior"><i class="bi bi-graph-up"></i> Senior Level</span>
+            <span class="jd-chip full"><i class="bi bi-briefcase"></i> <?php echo $jobs['job_type']; ?></span>
           </div>
 
           <div class="jd-hero-footer" style="margin-top:18px;">
@@ -803,7 +807,7 @@ white-space: nowrap;
               <div class="jd-apply-salary">  <?php echo $jobs['salary']; ?>  </div>
               <div class="jd-apply-salary-sub">Per year · Full-Time · Remote</div>  
               
-              <?php  if( $jobs['user_id'] != $_SESSION['user_id'] ) {   ?> 
+              <?php  if( $jobs['user_id'] != $_SESSION['user_id'] && $_SESSION["role"] != "employer") { ?> 
 
               <form method="POST">
                <?php  if(mysqli_num_rows($applications) >= 1 ){ ?>
@@ -817,12 +821,12 @@ white-space: nowrap;
       <?php } ?>
     </form>  
                    <?php
-                     }else {                     ?> 
+                     }elseif( $jobs['user_id'] == $_SESSION['user_id'] && $_SESSION["role"] == "employer") {                     ?> 
                       <button disabled class="btn-apply-now">
                 <i class="bi bi-send-fill"></i>  This Is Your Job Posting  
 </button>  <?php  } ?>
               <?php
-               if( $jobs['user_id'] != $_SESSION['user_id'] ) { 
+               if( $jobs['user_id'] != $_SESSION['user_id'] && $_SESSION["role"] != "employer") { 
 $job_id = $_GET["id"];
 $userid = $_SESSION["user_id"];
 $checkQuery = "SELECT * FROM saved_jobs WHERE user_id='$userid' AND job_id='$job_id'";
@@ -841,7 +845,7 @@ if (mysqli_num_rows($checkResult) > 0) { ?>
                   <i class="bi bi-bookmark"></i> Save this Job 
                 </a>
 
-                <?php   }}elseif($jobs['user_id'] == $_SESSION['user_id']){ ?>
+                <?php   }}elseif($jobs['user_id'] == $_SESSION['user_id'] && $_SESSION["role"] == "employer"){ ?>
    <a class="btn-save-job" href="./employer/add-manage-jobs.php?tab=manage-jobs">
                   <i class="bi bi-bookmark"></i> Manage Job
                 </a>

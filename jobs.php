@@ -5,27 +5,28 @@ include "includes/config.php";
 $categoryQuery = "SELECT * FROM categories";
 
 $categoryResult = mysqli_query($conn, $categoryQuery);
-
+if(isset($_GET["submit-filter"]) && !empty($_GET["filter"]) || isset($_GET["submit-search"]) && !empty($_GET["search"])){
 if (isset($_GET["submit-filter"]) && !empty($_GET["filter"])) {
   $filter = $_GET["filter"];
-  $filterquery = "SELECT categories.name AS cat_name,jobs.* from categories inner join jobs on jobs.category_id = categories.id where category_id = $filter and jobs.status = 'open' ";
+  $filterquery = "SELECT categories.name AS cat_name,users.company_logo,jobs.* from categories inner join jobs on jobs.category_id = categories.idINNER JOIN users on jobs.user_id = users.id where category_id = $filter and jobs.status = 'open' ";
   $result = mysqli_query($conn, $filterquery);
   if (!$result) {
     echo "Filter Failed" . mysqli_error($conn);
   }
-    } else {
-      $showquery = "SELECT categories.name AS cat_name, jobs.* FROM categories 
-                  INNER JOIN jobs ON jobs.category_id = categories.id 
-                  where jobs.status = 'open' ORDER BY jobs.id DESC";
-      $result = mysqli_query($conn, $showquery);
-}
-if(isset($_GET["submit-search"])){
+    } 
+  //  else
+if(isset($_GET["submit-search"]) && !empty($_GET["search"])){
 $search = $_GET["search"];  
-$query = "select *,categories.name AS cat_name from jobs inner join categories on jobs.category_id = categories.id where title like '%$search%' and jobs.status = 'open' ";
+$query = "select *,users.company_logo,categories.name AS cat_name from jobs inner join categories on jobs.category_id = categories.idINNER JOIN users on jobs.user_id = users.id where title like '%$search%' and jobs.status = 'open' ";
 $result = mysqli_query($conn, $query);
 if (!$result) {
 echo "There Is An Error In Search Query". mysqli_error($conn);
 }
+};
+} else {
+      $showquery = "SELECT categories.name AS cat_name,users.company_logo, jobs.* FROM categories 
+                  INNER JOIN jobs ON jobs.category_id = categories.id INNER JOIN users on jobs.user_id = users.id  where jobs.status = 'open' ORDER BY jobs.id DESC";
+      $result = mysqli_query($conn, $showquery);
 }
 ?>
 
@@ -1059,7 +1060,13 @@ echo "There Is An Error In Search Query". mysqli_error($conn);
             <div class="job-card">
               <span class="job-featured-badge"><i class="bi bi-star-fill"></i> Featured</span>
               <div class="job-card-head">
-                <div class="job-logo" style="background:linear-gradient(135deg,#dbeafe,#bfdbfe);">🖥️</div>
+                <div class="job-logo" >
+                  <?php if (!empty($jobs['company_logo'])) { ?>
+                        <img src="uploads/company_logos/<?php echo $jobs['company_logo']; ?>" width="50" height="50" style="object-fit:cover; border-radius:5px;">
+                    <?php } else { ?>
+                        <img src="assets/img/default_company.png" width="50" height="50" style="object-fit:cover; border-radius:5px;">
+                    <?php } ?>
+                </div>
                 <div class="job-head-info">
                   <h5 class="job-title"><?php echo $jobs['title'] ?></h5>
                   <div class="">
@@ -1077,7 +1084,7 @@ echo "There Is An Error In Search Query". mysqli_error($conn);
             </div> -->
               <div class="job-meta-row">
                 <div class="job-meta-item"><i class="bi bi-geo-alt"></i> <?php echo $jobs['location'] ?> </div>
-                <div class="job-meta-item"><i class="bi bi-people"></i> 11-50 emp.</div>
+                <div class="job-meta-item"><i class="bi bi-cash-stack"></i> <?php echo $jobs['job_type'] ?> </div>
               </div>
               <div class="job-card-footer">
                 <div>

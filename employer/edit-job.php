@@ -26,9 +26,10 @@ if (!isset($_SESSION["user_id"])) {
     $companyName = $_POST['company_name'] ; 
     $location = $_POST['location'] ; 
    $salary = $_POST['salary'] ; 
+     $job_type = mysqli_real_escape_string($conn,$_POST['job_type']);
    $description = $_POST['description'] ;  
    
-   $sql = "update jobs set title = '$jobTitle' , company = '$companyName' , location = '$location' , salary = '$salary' , description = '$description', status = '$status', category_id = '$categoryId' where id = $id and user_id = $userid " ;  
+   $sql = "update jobs set title = '$jobTitle' , company = '$companyName' , location = '$location' , salary = '$salary' ,job_type = '$job_type' , description = '$description', status = '$status', category_id = '$categoryId' where id = $id and user_id = $userid " ;  
    
    $result = mysqli_query($conn , $sql) ; 
    
@@ -288,7 +289,19 @@ if (!isset($_SESSION["user_id"])) {
                   <input type="text" id="salary" name="salary" placeholder="e.g. PKR 80,000 – 120,000 / month" required autocomplete="off"  value="<?php echo $job['salary'] ?> "  > 
               </div>
           </div>
-
+<!-- Job Time / Type -->
+ <div class="col-md-6">
+    <label class="form-label">Job Type</label>
+    <select name="job_type" class="form-select" required>
+        <option value="" disabled>Select Job Type</option>
+        <option value="Full Time">Full Time</option>
+        <option value="Part Time">Part Time</option>
+        <option value="Internship">Internship</option>
+        <option value="Contract">Contract</option>
+        <option value="Remote">Remote</option>
+        <option value="Hybrid">Hybrid</option>
+    </select>
+</div>
           <!-- Description -->
           <div class="form-group">
               <label for="description">Job Description <span class="req">*</span></label>

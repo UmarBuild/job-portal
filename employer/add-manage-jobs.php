@@ -27,15 +27,16 @@ else {
 $categoryQuery = "SELECT * FROM categories";
 $categoryResult = mysqli_query($conn, $categoryQuery);
 if (isset($_POST['post_job'])) {
-  $status = $_POST['status'];
-  $jobTitle = $_POST['job_title'];
-  $companyName = $_POST['company_name'];
+  $status = mysqli_real_escape_string($conn,$_POST['status']);
+  $jobTitle = mysqli_real_escape_string($conn,$_POST['job_title']);
+  $companyName = mysqli_real_escape_string($conn,$_POST['company_name']);
   $location = $_POST['location'];
-  $category_id = $_POST['category_id'];
-  $salary = $_POST['salary'];
-  $description = $_POST['description'];
+  $category_id = mysqli_real_escape_string($conn,$_POST['category_id']);
+  $salary = mysqli_real_escape_string($conn,$_POST['salary']);
+  $job_type = mysqli_real_escape_string($conn,$_POST['job_type']);
+  $description = mysqli_real_escape_string($conn,$_POST['description']);
 
-  $sql = "insert into jobs (user_id,title,company,location,salary,description,category_id,status) VALUES ($userid,'$jobTitle','$companyName','$location','$salary','$description',$category_id,'$status') ";
+  $sql = "insert into jobs (user_id,title,company,location,salary,job_type,description,category_id,status) VALUES ($userid,'$jobTitle','$companyName','$location','$salary','$job_type','$description',$category_id,'$status') ";
 
   $result = mysqli_query($conn,$sql);
 
@@ -1257,7 +1258,19 @@ $rejectapplication = mysqli_fetch_assoc($rejectapplicationresult);
                   <input type="text" id="salary" name="salary" placeholder="e.g. PKR 80,000 – 120,000 / month" required autocomplete="off">
                 </div>
               </div>
-
+<!-- Job Time / Type -->
+ <div class="col-md-6">
+    <label class="form-label">Job Type</label>
+    <select name="job_type" class="form-select" required>
+        <option value="" disabled>Select Job Type</option>
+        <option value="Full Time">Full Time</option>
+        <option value="Part Time">Part Time</option>
+        <option value="Internship">Internship</option>
+        <option value="Contract">Contract</option>
+        <option value="Remote">Remote</option>
+        <option value="Hybrid">Hybrid</option>
+    </select>
+</div>
               <!-- Description -->
               <div class="form-group">
                 <label for="description">Job Description <span class="req">*</span></label>

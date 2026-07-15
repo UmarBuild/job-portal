@@ -266,8 +266,10 @@ $categories = mysqli_query($conn, $categoriesquery); ?>
                     <div class="top-row">
                         <h3> <?php echo $job['title']; ?> </h3> <span class="category-tag"> <?php echo $job['category_name']; ?> </span>
                     </div>
+                    
                     <div class="company"> <?php echo $job['company']; ?> </div>
                     <div class="meta"> <span> <i class="bi bi-geo-alt"></i> <?php echo $job['location']; ?> </span> <span> <i class="bi bi-cash-stack"></i> <?php echo $job['salary']; ?> </span> </div>
+
                     <div class="employer-line"> Posted by <strong> <?php echo $job['employer_name']; ?> </strong> (<?php echo $job['employer_email']; ?>) </div>
                     <div class="card-footer"> <span class="date-posted"> <?php echo date("d M Y", strtotime($job['created_at'])); ?> </span>
                         <form method="POST" onsubmit="return confirm('Do you want to delete this job?')"> <input type="hidden" name="delete_job_id" value="<?php echo $job['id']; ?>"> <button type="submit" class="btn-delete"> <i class="bi bi-trash"></i> Delete </button> </form>
