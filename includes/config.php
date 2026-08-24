@@ -10,6 +10,6 @@ if(!$conn){
     die("Connection Failed".mysqli_connect_error()) ; 
 }
 else{
-    // echo "Connection Successfull" ; 
+    mysqli_set_charset($conn, "utf8mb4"); 
  } 
 ?>

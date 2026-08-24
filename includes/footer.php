@@ -135,11 +135,12 @@
     .footer-newsletter .btn-subscribe:hover {
       background-color: color-mix(in srgb, var(--accent-color) 85%, black);
     }
-    .footer-newsletter .loading,
-    .footer-newsletter .error-message,
-    .footer-newsletter .sent-message { font-size: 13px; margin-top: 10px; display: none; }
-    .footer-newsletter .sent-message { color: var(--accent-color); }
-    .footer-newsletter .error-message { color: #ef4444; }
+    .footer-newsletter .form-note {
+      font-size: 12px;
+      margin-top: 10px;
+      color: var(--default-color);
+      opacity: 0.7;
+    }
  
     .footer-bottom {
       border-top: 1px solid color-mix(in srgb, var(--heading-color) 8%, transparent);
@@ -182,8 +183,8 @@
   <div class="container footer-top">
     <div class="row gy-4">
       <div class="col-lg-3 col-md-6 footer-info">
-        <a href="index.html" class="logo">
-          <span class="sitename">Job<span>Portal</span></span>
+        <a href="/job-portal/index.php" class="logo">
+          <span class="sitename">Hire<span>Hub</span></span>
         </a>
         <p>A trusted platform connecting talented job seekers with the right employers — post jobs, find jobs, and grow your career or your team, all in one place.</p>
  
@@ -228,6 +229,13 @@
         <div class="footer-newsletter">
           <h4>Stay Updated</h4>
           <p>Subscribe to get the latest job openings and hiring tips straight to your inbox.</p>
+          <form>
+            <input type="email" name="newsletter_email" placeholder="Your email address" required>
+            <button type="submit" class="btn-subscribe" aria-label="Subscribe">
+              <i class="bi bi-send-fill"></i>
+            </button>
+          </form>
+          <p class="form-note">Coming soon — we'll notify you here once this is live.</p>
         </div>
       </div>
     </div>
@@ -237,7 +245,7 @@
     <div class="row gy-3">
       <div class="col-md-6 order-2 order-md-1">
         <div class="copyright">
-          <p>© <span>Copyright</span> <strong class="sitename">JobPortal</strong>. All Rights Reserved.</p>
+          <p>© <span>Copyright</span> <strong class="sitename">HireHub</strong>. All Rights Reserved.</p>
         </div>
         <div class="credits">
           Designed with care for job seekers and employers.
@@ -248,13 +256,9 @@
 </footer>
 
 <!-- Saare Scripts Footer ke BAHAR aur body close hone se PEHLE aane chahiye -->
-<!-- Paths ko bhi lowercase 'job-portal' kar diya hai taaki koi breakdown na ho -->
-<script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/popper.js@1.12.9/dist/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
-<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Bootstrap 5 use ho raha hai (data-bs-toggle) — isliye sirf ek Bootstrap bundle,
+     jQuery aur external Popper hata diye gaye hain kyunki Bootstrap 5 ko in ki zaroorat nahi -->
 <script src="/job-portal/assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
-<script src="/job-portal/assets/vendor/php-email-form/validate.js"></script>
 <script src="/job-portal/assets/vendor/aos/aos.js"></script>
 <script src="/job-portal/assets/vendor/glightbox/js/glightbox.min.js"></script>
 <script src="/job-portal/assets/vendor/imagesloaded/imagesloaded.pkgd.min.js"></script>

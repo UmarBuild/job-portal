@@ -1,79 +1,98 @@
 <?php
 session_start();
 include "../../job-portal/includes/config.php";
+require_once "../includes/notify.php";
+require_once "../mail/mail.php";
 if (!isset($_SESSION["user_id"])) {
   header("Location: ../login.php");
   exit();
-  };
-  if ($_SESSION["role"] != "employer" && $_SESSION["role"] != "admin") {
-    header("Location: ../login.php");
-      exit();
-    };
+};
+if ($_SESSION["role"] != "employer" && $_SESSION["role"] != "admin") {
+  header("Location: ../login.php");
+  exit();
+};
 
-$userid = $_SESSION['user_id'];
-$username = $_SESSION['user_name'];
+$userid = (int)$_SESSION['user_id'];
 $userrole = $_SESSION['role'];
-//   global $conn ; if you want  to remove these red erors just uncomment the global variable 
-$dataquery = "select * from users where id = '$userid' ";
-$dataqueryresult = mysqli_query($conn, $dataquery);
 
-if($dataqueryresult) {
+$dataquery = "select * from users where id = ?";
+$dataqueryresult = mysqli_execute_query($conn, $dataquery, [$userid]);
+
+if ($dataqueryresult) {
   $user = mysqli_fetch_assoc($dataqueryresult);
-} 
-else {
+} else {
   echo "data query failed" . mysqli_error($conn);
-  };
+};
 
 $categoryQuery = "SELECT * FROM categories";
 $categoryResult = mysqli_query($conn, $categoryQuery);
+
 if (isset($_POST['post_job'])) {
-  $status = mysqli_real_escape_string($conn,$_POST['status']);
-  $jobTitle = mysqli_real_escape_string($conn,$_POST['job_title']);
-  $companyName = mysqli_real_escape_string($conn,$_POST['company_name']);
-  $location = $_POST['location'];
-  $category_id = mysqli_real_escape_string($conn,$_POST['category_id']);
-  $salary = mysqli_real_escape_string($conn,$_POST['salary']);
-  $job_type = mysqli_real_escape_string($conn,$_POST['job_type']);
-  $description = mysqli_real_escape_string($conn,$_POST['description']);
+  $status = trim($_POST['status']);
+  $jobTitle = trim($_POST['job_title']);
+  $companyName = trim($_POST['company_name']);
+  $location = trim($_POST['location']);
+  $required_skills = trim($_POST['required_skills']);
+  $category_id = (int)$_POST['category_id'];
+  $salary = trim($_POST['salary']);
+  $job_type = trim($_POST['job_type']);
+  $description = trim($_POST['description']);
 
-  $sql = "insert into jobs (user_id,title,company,location,salary,job_type,description,category_id,status) VALUES ($userid,'$jobTitle','$companyName','$location','$salary','$job_type','$description',$category_id,'$status') ";
+  $sql = "insert into jobs (user_id, title, company, location, salary, job_type, description, category_id, status, approval_status, required_skills) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)";
 
-  $result = mysqli_query($conn,$sql);
-
+  $result = mysqli_execute_query($conn, $sql, [
+    $userid, $jobTitle, $companyName, $location, $salary, $job_type, $description, $category_id, $status, $required_skills
+  ]);
 
   if ($result) {
-    echo "Job posted successfully";
-    header("Location: ./add-manage-jobs.php?tab=manage-jobs");;
+    $adminsQuery = "select id, email, fullname from users where role = 'admin'";
+    $adminsResult = mysqli_query($conn, $adminsQuery);
+    while ($admin = mysqli_fetch_assoc($adminsResult)) {
+      sendNotification(
+        $conn,
+        $admin['id'],
+        'job_pending_review',
+        "New job \"{$jobTitle}\" needs your approval",
+        "/job-portal/admin/manage-jobs.php?status=pending"
+      );
+
+      sendMail(
+        $admin['email'],
+        "New Job Pending Approval",
+        "<p>Hi {$admin['fullname']}, a new job posting \"<b>{$jobTitle}</b>\" was submitted and is awaiting your review.</p>"
+      );
+    };
+    header("Location: ./add-manage-jobs.php?tab=manage-jobs");
     exit();
-    } else {
+  } else {
     echo "Job posting failed" . mysqli_error($conn);
   };
 };
 
-$jobquery = " select * from jobs where user_id = '$userid' ";
-$result = mysqli_query($conn, $jobquery);
+$jobquery = "select * from jobs where user_id = ?";
+$result = mysqli_execute_query($conn, $jobquery, [$userid]);
 
-$jobquerycount = " select count(*) from jobs where user_id = '$userid' ";
-$jobquerycountresult = mysqli_query($conn, $jobquerycount);
+$jobquerycount = "select count(*) from jobs where user_id = ?";
+$jobquerycountresult = mysqli_execute_query($conn, $jobquerycount, [$userid]);
 $currentjobs = mysqli_fetch_assoc($jobquerycountresult);
 
-$applicationquery = "select count(*) from applications inner join jobs on applications.job_id = jobs.id where jobs.user_id = $userid ";
-$applicationresult = mysqli_query($conn,$applicationquery);
+$applicationquery = "select count(*) from applications inner join jobs on applications.job_id = jobs.id where jobs.user_id = ?";
+$applicationresult = mysqli_execute_query($conn, $applicationquery, [$userid]);
 $applications = mysqli_fetch_assoc($applicationresult);
 
-$acceptapplicationquery = "select count(*) from applications inner join jobs on applications.job_id = jobs.id where applications.status = 'accepted' and jobs.user_id = $userid ";
-$acceptapplicationresult = mysqli_query($conn,$acceptapplicationquery);
+$acceptapplicationquery = "select count(*) from applications inner join jobs on applications.job_id = jobs.id where applications.status = 'accepted' and jobs.user_id = ?";
+$acceptapplicationresult = mysqli_execute_query($conn, $acceptapplicationquery, [$userid]);
 $acceptapplication = mysqli_fetch_assoc($acceptapplicationresult);
 
-$rejectapplicationquery = "select count(*) from applications inner join jobs on applications.job_id = jobs.id where applications.status = 'rejected' and jobs.user_id = $userid ";
-$rejectapplicationresult = mysqli_query($conn,$rejectapplicationquery);
+$rejectapplicationquery = "select count(*) from applications inner join jobs on applications.job_id = jobs.id where applications.status = 'rejected' and jobs.user_id = ?";
+$rejectapplicationresult = mysqli_execute_query($conn, $rejectapplicationquery, [$userid]);
 $rejectapplication = mysqli_fetch_assoc($rejectapplicationresult);
 ?>
 
 <title>OrbitJobs — Job Seeker Portal</title>
 <style>
   /* *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }  */
-  
+
   :root {
     --bg: #f1f5f9;
     --default: #475569;
@@ -1091,161 +1110,165 @@ $rejectapplication = mysqli_fetch_assoc($rejectapplicationresult);
 </style>
 </head>
 <?php
-    include "../../job-portal/includes/header.php";
+include "../../job-portal/includes/header.php";
 ?>
-  <!-- ══ LEFT SIDEBAR ══ -->
-  <div class="side-body">
-    <aside class="sidebar">
-      <div class="sidebar-logo">
-        <div class="logo-mark">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
-          </svg>
-        </div>
-        <span class="logo-text">Orbit<span>Jobs</span></span>
+
+<div class="side-body">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
+        </svg>
       </div>
+      <span class="logo-text">Orbit<span>Jobs</span></span>
+    </div>
 
-      <!-- User Profile -->
-      <div class="user-card">
-        <div class="user-avatar">AS</div>
-        <div class="user-name">Ahmed Saleem</div>
-        <div class="user-role">
-          <svg viewBox="0 0 24 24" fill="currentColor">
-            <circle cx="12" cy="12" r="4" />
-          </svg>
-          Job Seeker
-        </div>
-        <div class="user-id">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="2" y="5" width="20" height="14" rx="2" />
-            <path d="M2 10h20" />
-          </svg>
-          ID: JS-20294
-        </div>
+    <!-- User Profile -->
+    <div class="user-card">
+      <div class="user-avatar"><?php echo strtoupper(substr($user['fullname'] ?? 'U', 0, 2)); ?></div>
+      <div class="user-name"><?php echo htmlspecialchars($user['fullname'] ?? ''); ?></div>
+      <div class="user-role">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <circle cx="12" cy="12" r="4" />
+        </svg>
+        <?php echo htmlspecialchars(ucfirst($user['role'] ?? '')); ?>
       </div>
-
-      <!-- Navigation -->
-      <nav class="sidebar-nav">
-        <div class="nav-label">Menu</div>
-
-        <button id="showjobBtn" class="nav-item active" onclick="window.location.href='add-manage-jobs.php?tab=add-job';">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="16" />
-            <line x1="8" y1="12" x2="16" y2="12" />
-          </svg>
-          Add Jobs
-        </button>
-
-        <button id="showmanageBtn" class="nav-item" onclick="window.location.href='add-manage-jobs.php?tab=manage-jobs';">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
-            <rect x="9" y="3" width="6" height="4" rx="1" />
-            <line x1="9" y1="12" x2="15" y2="12" />
-            <line x1="9" y1="16" x2="13" y2="16" />
-          </svg>
-          Manage Jobs
-          <span class="badge" id="sidebarBadge">0</span>
-        </button>
-      </nav>
-
-      <div class="sidebar-footer">
-        <div class="sidebar-footer-text">OrbitJobs Portal v1.0</div>
+      <div class="user-id">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="5" width="20" height="14" rx="2" />
+          <path d="M2 10h20" />
+        </svg>
+        ID: <?php echo (int)($user['id'] ?? 0); ?>
       </div>
-    </aside>
+    </div>
 
-  </div>
+    <!-- Navigation -->
+    <nav class="sidebar-nav">
+      <div class="nav-label">Menu</div>
 
-  <!-- ══ CONTENT AREA ══ -->
-  <div class="content-area">
+      <button id="showjobBtn" class="nav-item active" onclick="window.location.href='add-manage-jobs.php?tab=add-job';">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="16" />
+          <line x1="8" y1="12" x2="16" y2="12" />
+        </svg>
+        Add Jobs
+      </button>
+
+      <button id="showmanageBtn" class="nav-item" onclick="window.location.href='add-manage-jobs.php?tab=manage-jobs';">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
+          <rect x="9" y="3" width="6" height="4" rx="1" />
+          <line x1="9" y1="12" x2="15" y2="12" />
+          <line x1="9" y1="16" x2="13" y2="16" />
+        </svg>
+        Manage Jobs
+        <span class="badge" id="sidebarBadge">0</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-footer-text">OrbitJobs Portal v1.0</div>
+    </div>
+  </aside>
+
+</div>
+
+<div class="content-area">
 
 
-    <!-- ════ ADD JOB PAGE ════ -->
-    <div id="add-job" class="page active">
 
-      <!-- Form -->
-      <div class="page-body">
-        <div class="add-layout">
+  <div id="add-job" class="page active">
 
-          <!-- FORM -->
-          <div class="form-card">
-            <div class="form-card-head">
-              <div class="fch-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M20 7H4a2 2 0 00-2 2v6a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z" />
-                  <path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" />
-                </svg>
-              </div>
-              <div class="fch-text">
-                <h3>Job Listing Details</h3>
-                <p>Fields marked <span style="color:var(--accent)">*</span> are required</p>
-              </div>
+    <!-- Form -->
+    <div class="page-body">
+      <div class="add-layout">
+
+        <!-- FORM -->
+        <div class="form-card">
+          <div class="form-card-head">
+            <div class="fch-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 7H4a2 2 0 00-2 2v6a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z" />
+                <path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" />
+              </svg>
             </div>
+            <div class="fch-text">
+              <h3>Job Listing Details</h3>
+              <p>Fields marked <span style="color:var(--accent)">*</span> are required</p>
+            </div>
+          </div>
 
-            <div class="form-body">
-              <form id="jobForm" method="POST">
+          <div class="form-body">
+            <form id="jobForm" method="POST">
 
-                <!-- Job Title -->
+              <!-- Job Title -->
+              <div class="form-group">
+                <label for="jobTitle">Job Title <span class="req">*</span></label>
+                <div class="inp-wrap">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2a5 5 0 015 5v2H7V7a5 5 0 015-5z" />
+                    <rect x="3" y="9" width="18" height="13" rx="2" />
+                  </svg>
+                  <input type="text" id="jobTitle" name="job_title" placeholder="e.g. Senior Frontend Developer" required autocomplete="off">
+                </div>
+              </div>
+
+              <!-- Company + Location -->
+              <div class="form-row">
                 <div class="form-group">
-                  <label for="jobTitle">Job Title <span class="req">*</span></label>
+                  <label for="companyName">Company Name <span class="req">*</span></label>
                   <div class="inp-wrap">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M12 2a5 5 0 015 5v2H7V7a5 5 0 015-5z" />
-                      <rect x="3" y="9" width="18" height="13" rx="2" />
+                      <rect x="2" y="7" width="20" height="15" rx="2" />
+                      <path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" />
                     </svg>
-                    <input type="text" id="jobTitle" name="job_title" placeholder="e.g. Senior Frontend Developer" required autocomplete="off">
+                    <input type="text" id="companyName" name="company_name" placeholder="e.g. Acme Corp" required autocomplete="off">
                   </div>
+                </div>
+                <div class="form-group">
+                  <label for="location">Location <span class="req">*</span></label>
+                  <div class="inp-wrap">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z" />
+                      <circle cx="12" cy="10" r="3" />
+                    </svg>
+                    <input type="text" id="location" name="location" placeholder="e.g. Karachi, Pakistan" required autocomplete="off">
+                  </div>
+                </div>
+              </div>
+              <div class="d-flex gap-3 mb-2">
+                <!-- Categry -->
+                <div>
+                  <label for="select-category">Select Category</label>
+                  <select name="category_id" class="form-select" style="max-width: 260px; padding: 8px 14px; font-size: 14px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.15); background-color: var(--surface-color); color: var(--default-color); outline: none;">
+
+                    <option selected disabled>Select Category</option>
+                    <?php
+                    while ($categories = mysqli_fetch_assoc($categoryResult)) { ?>
+                      <option value="<?php echo (int)$categories["id"]; ?>"><?php echo htmlspecialchars($categories["name"]); ?></option>
+                    <?php
+                    }
+                    ?>
+                  </select>
+                </div>
+                <!-- Required Skills -->
+                <div>
+                  <label>Required Skills (comma separated)</label>
+                  <input type="text" name="required_skills" placeholder="e.g. PHP, MySQL, JavaScript, Communication" required>
+                </div>
+                <!-- Status -->
+                <div>
+                  <label for="select-status">Status</label>
+                  <select name="status" class="form-select" style="max-width: 260px; font-size: 14px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.15); background-color: var(--surface-color); color: var(--default-color); outline: none;">
+                    <option value="open" selected>Open </option>
+                    <option value="closed">Closed</option>
+                  </select>
                 </div>
 
-                <!-- Company + Location -->
-                <div class="form-row">
-                  <div class="form-group">
-                    <label for="companyName">Company Name <span class="req">*</span></label>
-                    <div class="inp-wrap">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="2" y="7" width="20" height="15" rx="2" />
-                        <path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" />
-                      </svg>
-                      <input type="text" id="companyName" name="company_name" placeholder="e.g. Acme Corp" required autocomplete="off">
-                    </div>
-                  </div>
-                  <div class="form-group">
-                    <label for="location">Location <span class="req">*</span></label>
-                    <div class="inp-wrap">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z" />
-                        <circle cx="12" cy="10" r="3" />
-                      </svg>
-                      <input type="text" id="location" name="location" placeholder="e.g. Karachi, Pakistan" required autocomplete="off">
-                    </div>
-                  </div>
-                </div>
-                <div class="d-flex gap-3 mb-2">
-                  <!-- Categry -->
-                   <div>
-                     <label for="select-category">Select Category</label>
-                                <select name="category_id" class="form-select" style="max-width: 260px; padding: 8px 14px; font-size: 14px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.15); background-color: var(--surface-color); color: var(--default-color); outline: none;">
-                      
-                       <option selected disabled>Select Category</option>
-                       <?php
-                       while ($categories = mysqli_fetch_assoc($categoryResult)) { ?>
-                         <option value="<?php echo $categories["id"] ?>"><?php echo $categories["name"] ?></option>
-                       <?php
-                       }
-                       ?>
-                     </select>
-                   </div>
-                  <!-- Status -->
-                   <div>
-                     <label for="select-status">Status</label>
-                    <select name="status" class="form-select" style="max-width: 260px; font-size: 14px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.15); background-color: var(--surface-color); color: var(--default-color); outline: none;">
-                      <option value="open" selected>Open </option>
-                      <option value="closed">Closed</option>
-                    </select>
-                   </div>
-
-                </div>
+              </div>
 
               <!-- Salary -->
               <div class="form-group">
@@ -1258,19 +1281,19 @@ $rejectapplication = mysqli_fetch_assoc($rejectapplicationresult);
                   <input type="text" id="salary" name="salary" placeholder="e.g. PKR 80,000 – 120,000 / month" required autocomplete="off">
                 </div>
               </div>
-<!-- Job Time / Type -->
- <div class="col-md-6">
-    <label class="form-label">Job Type</label>
-    <select name="job_type" class="form-select" required>
-        <option value="" disabled>Select Job Type</option>
-        <option value="Full Time">Full Time</option>
-        <option value="Part Time">Part Time</option>
-        <option value="Internship">Internship</option>
-        <option value="Contract">Contract</option>
-        <option value="Remote">Remote</option>
-        <option value="Hybrid">Hybrid</option>
-    </select>
-</div>
+              <!-- Job Time / Type -->
+              <div class="col-md-6">
+                <label class="form-label">Job Type</label>
+                <select name="job_type" class="form-select" required>
+                  <option value="" disabled>Select Job Type</option>
+                  <option value="Full Time">Full Time</option>
+                  <option value="Part Time">Part Time</option>
+                  <option value="Internship">Internship</option>
+                  <option value="Contract">Contract</option>
+                  <option value="Remote">Remote</option>
+                  <option value="Hybrid">Hybrid</option>
+                </select>
+              </div>
               <!-- Description -->
               <div class="form-group">
                 <label for="description">Job Description <span class="req">*</span></label>
@@ -1297,270 +1320,267 @@ $rejectapplication = mysqli_fetch_assoc($rejectapplicationresult);
                 </svg>
               </button>
 
-              </form>
+            </form>
+          </div>
+        </div>
+
+        <!-- RIGHT COL -->
+        <div class="right-col">
+
+          <!-- Stats -->
+          <div class="side-widget">
+            <div class="widget-head">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 20V10M12 20V4M6 20v-6" />
+              </svg>
+              <h4>Your Activity</h4>
+            </div>
+            <div class="widget-body">
+              <div class="stats-2col">
+                <div class="stat-cell"><span class="n" id="wTotal">0</span><span class="l">Posted</span></div>
+                <div class="stat-cell"><span class="n" id="wActive">0</span><span class="l">Active</span></div>
+              </div>
             </div>
           </div>
 
-          <!-- RIGHT COL -->
-          <div class="right-col">
-
-            <!-- Stats -->
-            <div class="side-widget">
-              <div class="widget-head">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M18 20V10M12 20V4M6 20v-6" />
-                </svg>
-                <h4>Your Activity</h4>
-              </div>
-              <div class="widget-body">
-                <div class="stats-2col">
-                  <div class="stat-cell"><span class="n" id="wTotal">0</span><span class="l">Posted</span></div>
-                  <div class="stat-cell"><span class="n" id="wActive">0</span><span class="l">Active</span></div>
+          <!-- Profile -->
+          <div class="side-widget">
+            <div class="widget-head">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+              <h4>Your Profile</h4>
+            </div>
+            <div class="widget-body">
+              <div class="profile-mini">
+                <div class="pm-avatar"><?php echo strtoupper(substr($user['fullname'] ?? 'U', 0, 2)); ?></div>
+                <div>
+                  <div class="pm-name"><?php echo htmlspecialchars($user['fullname'] ?? ''); ?></div>
+                  <div class="pm-role"><?php echo htmlspecialchars(ucfirst($user['role'] ?? '')); ?></div>
                 </div>
+              </div>
+              <div class="profile-detail-row">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="2" y="5" width="20" height="14" rx="2" />
+                  <path d="M2 10h20" />
+                </svg>
+                ID: <?php echo (int)($user['id'] ?? 0); ?>
+              </div>
+              <div class="profile-detail-row">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z" />
+                  <circle cx="12" cy="10" r="3" />
+                </svg>
+                <?php echo htmlspecialchars($user['city'] ?? 'Not specified'); ?>
+              </div>
+              <div class="profile-detail-row">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                  <polyline points="22,6 12,13 2,6" />
+                </svg>
+                <?php echo htmlspecialchars($user['email'] ?? ''); ?>
               </div>
             </div>
-
-            <!-- Profile -->
-            <div class="side-widget">
-              <div class="widget-head">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg>
-                <h4>Your Profile</h4>
-              </div>
-              <div class="widget-body">
-                <div class="profile-mini">
-                  <div class="pm-avatar">AS</div>
-                  <div>
-                    <div class="pm-name">Ahmed Saleem</div>
-                    <div class="pm-role">Job Seeker</div>
-                  </div>
-                </div>
-                <div class="profile-detail-row">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="2" y="5" width="20" height="14" rx="2" />
-                    <path d="M2 10h20" />
-                  </svg>
-                  ID: JS-20294
-                </div>
-                <div class="profile-detail-row">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z" />
-                    <circle cx="12" cy="10" r="3" />
-                  </svg>
-                  Karachi, Pakistan
-                </div>
-                <div class="profile-detail-row">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                    <polyline points="22,6 12,13 2,6" />
-                  </svg>
-                  ahmed@email.com
-                </div>
-              </div>
-            </div>
-
-            <!-- Tips -->
-            <div class="side-widget">
-              <div class="widget-head">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="8" x2="12" y2="12" />
-                  <line x1="12" y1="16" x2="12.01" y2="16" />
-                </svg>
-                <h4>Tips for a Great Listing</h4>
-              </div>
-              <div class="widget-body">
-                <ul class="tips-list">
-                  <li>Use a clear, specific job title to attract the right candidates</li>
-                  <li>Always mention whether the role is remote, hybrid, or on-site</li>
-                  <li>Stating salary increases applications by up to 40%</li>
-                  <li>List required skills and preferred qualifications separately</li>
-                  <li>Keep the description concise — under 300 words works best</li>
-                </ul>
-              </div>
-            </div>
-
           </div>
+
+          <!-- Tips -->
+          <div class="side-widget">
+            <div class="widget-head">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <h4>Tips for a Great Listing</h4>
+            </div>
+            <div class="widget-body">
+              <ul class="tips-list">
+                <li>Use a clear, specific job title to attract the right candidates</li>
+                <li>Always mention whether the role is remote, hybrid, or on-site</li>
+                <li>Stating salary increases applications by up to 40%</li>
+                <li>List required skills and preferred qualifications separately</li>
+                <li>Keep the description concise — under 300 words works best</li>
+              </ul>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
+  </div>
 
-    <!-- ════ MANAGE JOBS PAGE ════ -->
-    <div id="manage-jobs" class="page w-90 mx-3 overflow-hidden">
 
-      <section class="hero">
-        <div class="hero-inner">
-          <div>
-            <div class="hero-greeting">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
-                <rect x="9" y="3" width="6" height="4" rx="1" />
-              </svg>
-              Your Job Listings
-            </div>
-            <h1>Manage Your<br><span class="accent">Posted Jobs</span></h1>
-            <p class="hero-sub">View, edit, or remove the job listings you have published. All your postings in one place.</p>
-            <div class="hero-stats">
-              <div class="hero-stat"><span class="num" id="mHeroTotal"><?php echo $currentjobs['count(*)'] ?></span><span class="lbl">Total Jobs</span></div>
-              <div class="hero-stat"><span class="num" id="mHeroActive"><?php echo $applications['count(*)'] ?></span><span class="lbl">Total Applications</span></div>
-              <div class="hero-stat"><span class="num"><?php echo $acceptapplication['count(*)'] ?></span><span class="lbl">Accepted</span></div>
-              <div class="hero-stat"><span class="num"><?php echo $rejectapplication['count(*)'] ?></span><span class="lbl">Rejected</span></div>
-            </div>
-          </div>
-          <div class="hero-cards">
-            <div class="hero-info-card">
-              <div class="hi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg></div>
-              <div class="hi-text">
-                <div class="hi-label">Name</div>
-                <div class="hi-val"><?php echo $user['fullname'] ?></div>
-              </div>
-            </div>
-            <div class="hero-info-card">
-              <div class="hi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M12 2a5 5 0 015 5v2H7V7a5 5 0 015-5z" />
-                  <rect x="3" y="9" width="18" height="13" rx="2" />
-                </svg></div>
-              <div class="hi-text">
-                <div class="hi-label">Role</div>
-                <div class="hi-val"><?php echo $user['role'] ?></div>
-              </div>
-            </div>
-            <div class="hero-info-card">
-              <div class="hi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="2" y="5" width="20" height="14" rx="2" />
-                  <path d="M2 10h20" />
-                </svg></div>
-              <div class="hi-text">
-                <div class="hi-label">ID</div>
-                <div class="hi-val"><?php echo $user['id'] ?></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+  <div id="manage-jobs" class="page w-90 mx-3 overflow-hidden">
 
-      <div class="page-body container-fluid px-3">
-        <div class="section-head d-flex justify-content-between align-items-center mb-3">
-          <h2>All <span>Listings</span></h2>
-          <div class="count-pill" id="countPill">
+    <section class="hero">
+      <div class="hero-inner">
+        <div>
+          <div class="hero-greeting">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
               <rect x="9" y="3" width="6" height="4" rx="1" />
             </svg>
-            <?php echo mysqli_num_rows($result) ?> listings
+            Your Job Listings
+          </div>
+          <h1>Manage Your<br><span class="accent">Posted Jobs</span></h1>
+          <p class="hero-sub">View, edit, or remove the job listings you have published. All your postings in one place.</p>
+          <div class="hero-stats">
+            <div class="hero-stat"><span class="num" id="mHeroTotal"><?php echo (int)$currentjobs['count(*)']; ?></span><span class="lbl">Total Jobs</span></div>
+            <div class="hero-stat"><span class="num" id="mHeroActive"><?php echo (int)$applications['count(*)']; ?></span><span class="lbl">Total Applications</span></div>
+            <div class="hero-stat"><span class="num"><?php echo (int)$acceptapplication['count(*)']; ?></span><span class="lbl">Accepted</span></div>
+            <div class="hero-stat"><span class="num"><?php echo (int)$rejectapplication['count(*)']; ?></span><span class="lbl">Rejected</span></div>
           </div>
         </div>
-
-        <div class="table-responsive shadow-sm rounded border bg-white w-100">
-          <table class="table table-striped table-hover align-middle mb-0" style="min-width: 600px;">
-            <thead class="table-light">
-              <tr>
-                <th scope="col" style="padding: 12px 16px; width:10%; ">User_Id</th>
-                <th scope="col" style="width: 20%;">Title</th>
-                <th scope="col" style="width: 25%;">Company</th>
-                <th scope="col" style="width: 15%;">Salary</th>
-                <th scope="col" class="text-center" style="width: 30% ; ">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              <?php
-              while ($jobs = mysqli_fetch_assoc($result)) {
-              ?>
-                <tr>
-                  <td style="padding: 12px 16px;"> <?php echo $jobs['user_id'] ?> </td>
-                  <td class="fw-semibold text-secondary"> <?php echo $jobs['title'] ?> </td>
-                  <td> <?php echo $jobs['company'] ?> </td>
-                  <td class="text-success fw-medium"> <?php echo $jobs['salary'] ?> </td>
-                  <td style="text-align: center; vertical-align: middle;">
-                    <div style="display: flex; gap: 8px; justify-content: center; align-items: center;">
-
-                      <a href="./edit-job.php?id=<?php echo $jobs['id']; ?>"
-                        style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 0.85rem; font-weight: 500; color: #3b82f6; background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; text-decoration: none; transition: all 0.2s ease;"
-                        onmouseover="this.style.backgroundColor='#3b82f6'; this.style.color='#ffffff';"
-                        onmouseout="this.style.backgroundColor='#eff6ff'; this.style.color='#3b82f6';">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;">
-                          <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-                          <path d="M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z" />
-                        </svg>
-                        Edit
-                      </a>
-
-                      <a href="./delete-job.php?id=<?php echo $jobs['id']; ?>"
-                        onclick="return confirm('Are you sure you want to delete this job?')"
-                        style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 0.85rem; font-weight: 500; color: #ef4444; background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; text-decoration: none; transition: all 0.2s ease;"
-                        onmouseover="this.style.backgroundColor='#ef4444'; this.style.color='#ffffff';"
-                        onmouseout="this.style.backgroundColor='#fef2f2'; this.style.color='#ef4444';">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;">
-                          <polyline points="3 6 5 6 21 6" />
-                          <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-                          <line x1="10" y1="11" x2="10" y2="17" />
-                          <line x1="14" y1="11" x2="14" y2="17" />
-                        </svg>
-                        Delete
-                      </a>
-
-                    </div>
-                  </td>
-                </tr>
-              <?php } ?>
-            </tbody>
-          </table>
+        <div class="hero-cards">
+          <div class="hero-info-card">
+            <div class="hi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg></div>
+            <div class="hi-text">
+              <div class="hi-label">Name</div>
+              <div class="hi-val"><?php echo htmlspecialchars($user['fullname'] ?? ''); ?></div>
+            </div>
+          </div>
+          <div class="hero-info-card">
+            <div class="hi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2a5 5 0 015 5v2H7V7a5 5 0 015-5z" />
+                <rect x="3" y="9" width="18" height="13" rx="2" />
+              </svg></div>
+            <div class="hi-text">
+              <div class="hi-label">Role</div>
+              <div class="hi-val"><?php echo htmlspecialchars(ucfirst($user['role'] ?? '')); ?></div>
+            </div>
+          </div>
+          <div class="hero-info-card">
+            <div class="hi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="5" width="20" height="14" rx="2" />
+                <path d="M2 10h20" />
+              </svg></div>
+            <div class="hi-text">
+              <div class="hi-label">ID</div>
+              <div class="hi-val"><?php echo (int)($user['id'] ?? 0); ?></div>
+            </div>
+          </div>
         </div>
+      </div>
+    </section>
+
+    <div class="page-body container-fluid px-3">
+      <div class="section-head d-flex justify-content-between align-items-center mb-3">
+        <h2>All <span>Listings</span></h2>
+        <div class="count-pill" id="countPill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
+            <rect x="9" y="3" width="6" height="4" rx="1" />
+          </svg>
+          <?php echo mysqli_num_rows($result); ?> listings
+        </div>
+      </div>
+
+      <div class="table-responsive shadow-sm rounded border bg-white w-100">
+        <table class="table table-striped table-hover align-middle mb-0" style="min-width: 600px;">
+          <thead class="table-light">
+            <tr>
+              <th scope="col" style="padding: 12px 16px; width:10%; ">User_Id</th>
+              <th scope="col" style="width: 20%;">Title</th>
+              <th scope="col" style="width: 25%;">Company</th>
+              <th scope="col" style="width: 15%;">Salary</th>
+              <th scope="col" class="text-center" style="width: 30% ; ">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php
+            while ($jobs = mysqli_fetch_assoc($result)) {
+            ?>
+              <tr>
+                <td style="padding: 12px 16px;"> <?php echo (int)$jobs['user_id']; ?> </td>
+                <td class="fw-semibold text-secondary"> <?php echo htmlspecialchars($jobs['title']); ?> </td>
+                <td> <?php echo htmlspecialchars($jobs['company']); ?> </td>
+                <td class="text-success fw-medium"> <?php echo htmlspecialchars($jobs['salary']); ?> </td>
+                <td style="text-align: center; vertical-align: middle;">
+                  <div style="display: flex; gap: 8px; justify-content: center; align-items: center;">
+
+                    <a href="./edit-job.php?id=<?php echo (int)$jobs['id']; ?>"
+                      style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 0.85rem; font-weight: 500; color: #3b82f6; background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; text-decoration: none; transition: all 0.2s ease;"
+                      onmouseover="this.style.backgroundColor='#3b82f6'; this.style.color='#ffffff';"
+                      onmouseout="this.style.backgroundColor='#eff6ff'; this.style.color='#3b82f6';">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;">
+                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z" />
+                      </svg>
+                      Edit
+                    </a>
+
+                    <a href="./delete-job.php?id=<?php echo (int)$jobs['id']; ?>"
+                      onclick="return confirm('Are you sure you want to delete this job?')"
+                      style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 0.85rem; font-weight: 500; color: #ef4444; background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; text-decoration: none; transition: all 0.2s ease;"
+                      onmouseover="this.style.backgroundColor='#ef4444'; this.style.color='#ffffff';"
+                      onmouseout="this.style.backgroundColor='#fef2f2'; this.style.color='#ef4444';">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                        <line x1="10" y1="11" x2="10" y2="17" />
+                        <line x1="14" y1="11" x2="14" y2="17" />
+                      </svg>
+                      Delete
+                    </a>
+
+                  </div>
+                </td>
+              </tr>
+            <?php } ?>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
-  </div>
+</div>
 
-  </div>
 
-  <!-- Toast -->
-  <div class="toast" id="toast">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
-    Job posted successfully!
-  </div>
+<div class="toast" id="toast">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+  Job posted successfully!
+</div>
 
-  <script>
-    const jobPage = document.getElementById("add-job");
-    const managejobPage = document.getElementById("manage-jobs");
-    const showjobBtn = document.getElementById("showjobBtn");
-    const showmanageBtn = document.getElementById("showmanageBtn");
-    //  function showjobPage(){
-    //         jobPage.style.display = "block";
-    //         managejobPage.style.display = "none";
+<script>
+  const jobPage = document.getElementById("add-job");
+  const managejobPage = document.getElementById("manage-jobs");
+  const showjobBtn = document.getElementById("showjobBtn");
+  const showmanageBtn = document.getElementById("showmanageBtn");
+  //  function showjobPage(){
+  //         jobPage.style.display = "block";
+  //         managejobPage.style.display = "none";
 
-    //         document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
-    //         event.currentTarget.classList.add('active');
-    //     }
+  //         document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
+  //         event.currentTarget.classList.add('active');
+  //     }
 
-    //     function showmanageJob(){
-    //         managejobPage.style.display = "block";
-    //         jobPage.style.display = "none";
+  //     function showmanageJob(){
+  //         managejobPage.style.display = "block";
+  //         jobPage.style.display = "none";
 
-    //         document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
-    //         event.currentTarget.classList.add('active');
-    //     }
-    let tab = "<?php echo $_GET['tab'] ?? 'add-job';  ?>";
-    if (tab == 'add-job') {
-      jobPage.style.display = "block";
-      managejobPage.style.display = "none";
-      document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
-      showjobBtn.classList.add('active');
-    }
-    if (tab == 'manage-jobs') {
-      managejobPage.style.display = "block";
-      jobPage.style.display = "none";
-      document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
-      showmanageBtn.classList.add('active');
-    }
-    console.log(tab);
-  </script>
+  //         document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
+  //         event.currentTarget.classList.add('active');
+  //     }
+  let tab = "<?php echo $_GET['tab'] ?? 'add-job';  ?>";
+  if (tab == 'add-job') {
+    jobPage.style.display = "block";
+    managejobPage.style.display = "none";
+    document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
+    showjobBtn.classList.add('active');
+  }
+  if (tab == 'manage-jobs') {
+    managejobPage.style.display = "block";
+    jobPage.style.display = "none";
+    document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
+    showmanageBtn.classList.add('active');
+  }
+  console.log(tab);
+</script>
 
 </body>
 

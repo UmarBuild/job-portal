@@ -13,13 +13,13 @@ if (isset($_POST['register'])) {
         
         $hashedpassword = password_hash($password, PASSWORD_DEFAULT);
         
-        $check = mysqli_query($conn, "select * from users where email = '$email' ");
+        $check = mysqli_execute_query($conn, "select * from users where email = ?", [$email]);
         if (mysqli_num_rows($check) > 0) {
             echo "Email already exists";
         }
         if ($password === $confirm_password && mysqli_num_rows($check) == 0) {
-            $sql = "insert into users (fullname,email,password,role) VALUES ('$fullname','$email','$hashedpassword','$role') ";
-            $result = mysqli_query($conn, $sql);
+            $sql = "insert into users (fullname,email,password,role) VALUES (?,?,?,?) ";
+            $result = mysqli_execute_query($conn, $sql,[$fullname, $email, $hashedpassword, $role]);
             if ($result) {
            sendMail($email,"Account Created Sucessfully","<h1> Welcome to Job Portal  </h1> <p>".$fullname." you have successfully registered</p>");
               header("Location: login.php");
@@ -237,6 +237,49 @@ if (isset($_POST['register'])) {
     .right-content h1 { font-size: 22px; }
     .right-content p { font-size: 14px; margin-bottom: 1.5rem; }
   }
+  .input-wrap select {
+    width: 100%;
+    height: 42px;
+    padding: 0 12px 0 38px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #1e293b;
+    background: #f8fafc;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.input-wrap select:focus {
+    border-color: #0ea5e9;
+    box-shadow: 0 0 0 3px rgba(14,165,233,0.12);
+    background-color: #ffffff;
+}
+
+.input-wrap select:invalid {
+    color: #94a3b8;
+}
+
+.input-wrap select option {
+    color: #1e293b;
+}
+
+.input-wrap.select-wrap::after {
+    content: "";
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid #94a3b8;
+    border-bottom: 2px solid #94a3b8;
+    transform: translateY(-70%) rotate(45deg);
+    pointer-events: none;
+}
 </style>
 </head>
 <body>
@@ -288,13 +331,17 @@ if (isset($_POST['register'])) {
         </div>
       </div>
       
-      <div class="form-group">
-        <label for="role">Role</label>
-        <div class="input-wrap">
-          <i class="ti ti-lock"></i>
-          <input type="text" id="role" name="role" placeholder=" Select your role ex: Employer , Applicant " required>
-        </div>
-      </div>
+     <div class="form-group">
+    <label for="role">I am registering as</label>
+    <div class="input-wrap select-wrap">
+      <i class="ti ti-briefcase"></i>
+      <select id="role" name="role" required>
+        <option value="" disabled selected>Select your role</option>
+        <option value="employer">Employer — I want to post jobs</option>
+        <option value="applicant">Applicant — I want to find a job</option>
+      </select>
+    </div>
+</div>
 
       <button type="submit" name="register" class="submit-btn">
         <i class="ti ti-user-plus"></i>

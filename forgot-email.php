@@ -6,33 +6,43 @@ $errorMsg = "";
 $successMsg = "";
  
 if (isset($_POST['change_email'])) {
-    $oldEmail = $_POST['old_email'];
+    $oldEmail = trim($_POST['old_email']);
     $password = $_POST['password'];
-    $newEmail = $_POST['new_email'];
+    $newEmail = trim($_POST['new_email']);
     
-    $check = "select * from users where email = '$oldEmail' ";
-    $result = mysqli_query($conn, $check);
+    $check = "select id,password from users where email = ? ";
+    $result = mysqli_execute_query($conn, $check,[$oldEmail]);
  
     if (mysqli_num_rows($result) >= 1) {
-        $user = mysqli_fetch_assoc($result);
 
+        $user = mysqli_fetch_assoc($result);
         if (password_verify($password, $user['password'])) {
- 
+            $newEmailQuery = "select id from users where email = ? ";
+            $newEmailQueryResult = mysqli_execute_query($conn, $newEmailQuery,[$newEmail]);
+           if($oldEmail == $newEmail) {
+$errorMsg = "Old email and new email can't be same.";
+            }elseif (mysqli_num_rows($newEmailQueryResult) >= 1) {
+$errorMsg = "This email is already registered.";
+            }else{   
             $userid = $user['id'];
-            $update = "update users set email = '$newEmail' where id = $userid";
-            $updateResult = mysqli_query($conn, $update);
+            $update = "update users set email = ? where id = ?";
+            $updateResult = mysqli_execute_query($conn, $update,[$newEmail,$userid]);
  
             if ($updateResult) { ?>
                 <script>
                     alert("Email updated successfully! Please login with your new email.");
                     window.location.href = "login.php";
                 </script>
-      <?php      } else {
+      <?php   
+                   exit();
+         } else {
                 $errorMsg = "Something went wrong. Please try again.";
+            }
             }
         } else {
             $errorMsg = "Incorrect password.";
         }
+        
     } else {
         $errorMsg = "This email is not registered.";
     }
@@ -111,7 +121,7 @@ if (isset($_POST['change_email'])) {
         font-size: 16px;
     }
 
-    .form-group input[type="text"] {
+    .form-group input {
         width: 100%;
         padding: 14px 14px 14px 42px;
         border-radius: 10px;
@@ -124,7 +134,7 @@ if (isset($_POST['change_email'])) {
         transition: all 0.3s;
     }
 
-    .form-group input[type="text"]:focus {
+    .form-group input:focus {
         border-color: var(--accent-color);
         background-color: var(--surface-color);
         box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.15);

@@ -2,7 +2,8 @@
 session_start();
 include "includes/config.php"; 
 
-$jobsCountQuery = "select count(*) as total from jobs where status = 'open'";
+
+$jobsCountQuery = "select count(*) as total from jobs where status = 'open' and approval_status = 'approved'";
 $jobsCountResult = mysqli_query($conn, $jobsCountQuery);
 $jobsCountRow = mysqli_fetch_assoc($jobsCountResult);
 $totalJobs = $jobsCountRow['total'];
@@ -56,6 +57,50 @@ $latestJobsResult = mysqli_query($conn, $latestJobsQuery);
     max-width: 640px;
     margin: 0 auto 30px;
     opacity: 0.95;
+}
+
+/* ---------------- Homepage search bar ---------------- */
+.home-search-bar {
+    display: flex;
+    background: var(--surface-color);
+    border-radius: 12px;
+    overflow: hidden;
+    max-width: 620px;
+    margin: 0 auto 26px;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+}
+
+.home-search-bar input {
+    flex: 1;
+    border: none;
+    outline: none;
+    padding: 16px 20px;
+    font-size: 15px;
+    font-family: var(--default-font);
+    color: var(--heading-color);
+    background: transparent;
+}
+
+.home-search-bar input::placeholder {
+    color: #94a3b8;
+}
+
+.home-search-bar button {
+    background: var(--accent-color);
+    color: var(--contrast-color);
+    border: none;
+    padding: 0 28px;
+    font-weight: 700;
+    font-size: 14.5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.25s ease;
+}
+
+.home-search-bar button:hover {
+    background: var(--heading-color);
 }
  
 .hero-btn-wrap {
@@ -155,6 +200,8 @@ $latestJobsResult = mysqli_query($conn, $latestJobsQuery);
     text-align: center;
     box-shadow: 0 2px 12px rgba(0,0,0,0.06);
     transition: transform 0.25s ease, box-shadow 0.25s ease;
+    text-decoration: none;
+    display: block;
 }
  
 .category-card:hover {
@@ -323,6 +370,8 @@ $latestJobsResult = mysqli_query($conn, $latestJobsQuery);
     .stats-grid { grid-template-columns: 1fr; }
     .categories-grid { grid-template-columns: repeat(2, 1fr); }
     .jobs-grid { grid-template-columns: 1fr; }
+    .home-search-bar { flex-direction: column; border-radius: 12px; }
+    .home-search-bar button { padding: 14px; justify-content: center; }
 }
 </style>
 
@@ -333,6 +382,11 @@ include "./includes/header.php";
 <section class="home-hero">
     <h1>Find Your Next Job Today</h1>
     <p>Browse thousands of job listings or find the right talent for your company - all in one place</p>
+
+    <form class="home-search-bar" method="GET" action="jobs.php">
+        <input type="text" name="search" placeholder="Job title, skill, or keyword…">
+        <button type="submit" name="submit-search"><i class="bi bi-search"></i> Search</button>
+    </form>
 
     <div class="hero-btn-wrap">
         <a href="jobs.php" class="btn-browse-jobs">Browse Jobs</a>
@@ -371,10 +425,10 @@ include "./includes/header.php";
         if ($categoriesResult && mysqli_num_rows($categoriesResult) > 0) {
             while ($category = mysqli_fetch_assoc($categoriesResult)) {
         ?>
-            <div class="category-card">
+            <a href="jobs.php?filter=<?php echo (int)$category['id']; ?>&submit-filter=1#jobs-section" class="category-card">
                 <div class="icon-circle"><i class="bi bi-briefcase-fill"></i></div>
-                <h3><?php echo $category['name']; ?></h3>
-            </div>
+                <h3><?php echo htmlspecialchars($category['name']); ?></h3>
+            </a>
         <?php
             }
         } else {
@@ -399,17 +453,17 @@ include "./includes/header.php";
         ?>
             <div class="job-card">
                 <div class="top-row">
-                    <h3><?php echo $job['title']; ?></h3>
-                    <span class="category-tag"><?php echo $job['category_name'] ? $job['category_name'] : 'N/A'; ?></span>
+                    <h3><?php echo htmlspecialchars($job['title']); ?></h3>
+                    <span class="category-tag"><?php echo !empty($job['category_name']) ? htmlspecialchars($job['category_name']) : 'N/A'; ?></span>
                 </div>
-                <div class="company"><?php echo $job['company']; ?></div>
+                <div class="company"><?php echo htmlspecialchars($job['company']); ?></div>
                 <div class="meta">
-                    <span><i class="bi bi-geo-alt"></i> <?php echo $job['location']; ?></span>
-                    <span><i class="bi bi-cash-stack"></i> <?php echo $job['salary']; ?></span>
+                    <span><i class="bi bi-geo-alt"></i> <?php echo htmlspecialchars($job['location']); ?></span>
+                    <span><i class="bi bi-cash-stack"></i> <?php echo htmlspecialchars($job['salary']); ?></span>
                 </div>
                 <div class="card-footer">
                     <span class="date-posted"><?php echo date('d M Y', strtotime($job['created_at'])); ?></span>
-                    <a class="btn-apply" href="jobs.php">View Job</a>
+                    <a class="btn-apply" href="job-details.php?id=<?php echo (int)$job['id']; ?>">View Job</a>
                 </div>
             </div>
         <?php

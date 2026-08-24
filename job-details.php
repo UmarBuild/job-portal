@@ -1,41 +1,73 @@
-<?php          
-session_start() ; 
+<?php           
+session_start(); 
 include "includes/config.php"; 
-$userid = $_SESSION['user_id'] ; 
-  if (!isset($_SESSION["user_id"])) {   
-header("Location: login.php");
-  };
-$id = $_GET['id'] ; 
-$showquery = "select *,users.company_logo from jobs inner join users on jobs.user_id = users.id where jobs.id=$id" ; 
-$result = mysqli_query($conn , $showquery) ; 
-$jobs = mysqli_fetch_assoc($result) ;  
-$namequery = " select users.fullname from jobs inner join users on jobs.user_id = users.id where jobs.id = $id; " ;  
-$nameResult = mysqli_query($conn , $namequery) ; 
-$name = mysqli_fetch_assoc($nameResult) ;   
+require_once "includes/notify.php";
+require_once "mail/mail.php";
+require_once "./includes/csrf.php";
 
-$applicationsquery = "select * from applications where job_id = $id and applicant_id = $userid " ; 
-$applications = mysqli_query($conn , $applicationsquery) ;               
-if(isset($_POST['apply-job'])){ 
-       if(mysqli_num_rows($applications) >= 1 ){ ?>
- <script>
-  alert("already enrolled in this job") ; 
- window.location.href = "./applicant/applied-jobs.php?id=<?php echo $id ?>" ;
- </script>       
-    <?php   }else{
-$insertapplication =   "insert into applications (job_id,applicant_id) VALUES ($id,$userid)" ; 
-       $applied_jobs = mysqli_query($conn , $insertapplication) ; 
-       if($applied_jobs){
-         echo "Job applied successfully" ;  
-         }     else{
-           echo "Job application failed".mysqli_error($conn) ;
-           }  
-       header("Location: ./applicant/applied-jobs.php?id=$id") ;               
-       }
-       }             
-       
-     
-       
-?>  
+if (!isset($_SESSION["user_id"]) || !isset($_GET["id"])) {  
+    header("Location: login.php");
+    exit();
+}
+
+$userid = (int)$_SESSION['user_id']; 
+$id = (int)$_GET['id']; 
+
+// Fetch Job Details
+$showquery = "SELECT jobs.*, users.company_logo, users.fullname, users.email FROM jobs INNER JOIN users ON jobs.user_id = users.id WHERE jobs.id = ?"; 
+$result = mysqli_execute_query($conn, $showquery, [$id]); 
+$jobs = mysqli_fetch_assoc($result);     
+
+if (!$jobs) {
+    header("Location: jobs.php");
+    exit();
+}
+
+// Fetch Application Status
+$applicationsquery = "SELECT * FROM applications WHERE job_id = ? AND applicant_id = ?"; 
+$applications = mysqli_execute_query($conn, $applicationsquery, [$id, $userid]);               
+
+// Handle Apply Job Submission
+if (isset($_POST['apply-job'])) { 
+    // CSRF Token Validation
+    $token = $_POST['csrf_token'] ?? '';
+    if (!verifyCsrfToken($token)) {
+        die("Invalid CSRF Token.");
+    }
+
+    if (mysqli_num_rows($applications) >= 1) { 
+        $_SESSION["error"] = "You have already applied for this job.";
+        header("Location: ./applicant/applied-jobs.php");
+        exit();  
+    } else {
+        $insertapplication = "INSERT INTO applications (job_id, applicant_id) VALUES (?, ?)";
+        $applied_jobs = mysqli_execute_query($conn, $insertapplication, [$id, $userid]);
+        
+        if ($applied_jobs) {
+            $_SESSION["status"] = "Job application successful";
+
+            sendNotification(
+                $conn, 
+                $jobs['user_id'], 
+                'new_applicant',
+                "New applicant for \"{$jobs['title']}\"",
+                "/job-portal/employer/employer-applications.php"
+            );
+
+            sendMail(
+                $jobs['email'], 
+                "New Applicant Received",
+                "<p>Hi " . htmlspecialchars($jobs['fullname']) . ", someone just applied for your job posting <b>" . htmlspecialchars($jobs['title']) . "</b>. Log in to your dashboard to review the application.</p>"
+            );
+        } else {
+            $_SESSION["error"] = "Unable to apply for this job.";
+        }
+        
+        header("Location: ./applicant/applied-jobs.php?id=$id");
+        exit();
+    }
+}            
+?>
         
       
         
@@ -704,6 +736,44 @@ white-space: nowrap;
 .jd-company-logo { width: 60px; height: 60px; font-size: 26px; border-radius: 14px; }
 .jd-hero h1 { font-size: 1.6rem; }
 }
+.btn-view-company-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(135deg, #0ea5e9, #0284c7);
+    color: #fff;
+    border: none;
+    padding: 9px 18px;
+    border-radius: 10px;
+    font-size: 13.5px;
+    font-weight: 700;
+    font-family: var(--nav-font);
+    text-decoration: none;
+    white-space: nowrap;
+    transition: all 0.3s;
+}
+
+.btn-view-company-inline:hover {
+    background: linear-gradient(135deg, #0284c7, #0369a1);
+    color: #fff;
+    text-decoration: none;
+    transform: translateY(-2px);
+}
+@media (max-width: 575px) {
+    .jd-company-logo { width: 60px; height: 60px; font-size: 26px; border-radius: 14px; }
+    .jd-hero h1 { font-size: 1.6rem; }
+    
+    .jd-company-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    
+    .btn-view-company-inline {
+        width: 100%;
+        justify-content: center;
+    }
+}
 </style>  
    </head>
    
@@ -728,8 +798,8 @@ white-space: nowrap;
       <p>Review the full job description and apply directly from this page.</p>
     </div>
   </div> 
-   
-   
+    
+    
   <section class="jd-hero">
     <div class="container">
 
@@ -738,33 +808,33 @@ white-space: nowrap;
       </a>
 
       <div class="jd-hero-inner">
-        <div class="jd-company-logo"  style="background: #f1f5f9;">
+        <div class="jd-company-logo" style="background: #f1f5f9;">
            <?php if (!empty($jobs['company_logo'])) { ?>
-                        <img src="uploads/company_logos/<?php echo $jobs['company_logo']; ?>" width="70" height="70" style="object-fit:cover; border-radius:5px;">
+                        <img src="uploads/company_logos/<?php echo htmlspecialchars($jobs['company_logo']); ?>" width="70" height="70" style="object-fit:cover; border-radius:5px;">
                     <?php } else { ?>
                         <img src="assets/img/default_company.png" width="70" height="70" style="object-fit:cover; border-radius:5px;">
                     <?php } ?>
         </div>
 
         <div class="jd-hero-content">
-          <div class="jd-featured-badge"><i class="bi bi-star-fill"></i> Posted By :  <?php  echo $name['fullname'] ;   ?></div> 
-          <h1><?php echo $jobs['title']; ?></h1>
+          <div class="jd-featured-badge"><i class="bi bi-star-fill"></i> Posted By : <?php echo htmlspecialchars($jobs['fullname']); ?></div> 
+          <h1><?php echo htmlspecialchars($jobs['title']); ?></h1>
 
           <div class="jd-company-row">
             <div class="jd-company-name">
-              <i class="bi bi-buildings"></i> <?php echo $jobs['company']; ?> 
+              <i class="bi bi-buildings"></i> <?php echo htmlspecialchars($jobs['company']); ?> 
             </div>
             <div>
-              <a href="/job-portal/company.php?id=<?php echo $jobs['user_id']; ?>" class="btn-apply-now">View Company</a>
+              <a href="/job-portal/company.php?id=<?php echo (int)$jobs['user_id']; ?>" class="btn-view-company-inline">View Company</a>
             </div>
           </div>
 
           <div class="jd-meta-chips">
-            <span class="jd-chip full"><i class="bi bi-briefcase"></i> <?php echo $jobs['job_type']; ?></span>
+            <span class="jd-chip full"><i class="bi bi-briefcase"></i> <?php echo htmlspecialchars($jobs['job_type']); ?></span>
           </div>
 
           <div class="jd-hero-footer" style="margin-top:18px;">
-            <div class="jd-posted"><i class="bi bi-clock"></i> <?php echo $jobs['created_at']; ?>  </div>
+            <div class="jd-posted"><i class="bi bi-clock"></i> <?php echo htmlspecialchars($jobs['created_at']); ?> </div>
             <div class="jd-deadline"><i class="bi bi-calendar-x"></i> Deadline: July 30, 2026</div>
           </div>
         </div>
@@ -791,12 +861,12 @@ white-space: nowrap;
 
             <div class="jd-card-body"> 
               <div class="jd-description"> 
-          <p> <?php echo $jobs['description']; ?>  </p>           
+                <p> <?php echo htmlspecialchars($jobs['description']); ?> </p>           
               </div>
                                                 
               <div class="jd-divider"></div>                               
                                                                         
-            </div>                                                     
+            </div>                                                    
           </div> 
         </div> 
         
@@ -804,65 +874,71 @@ white-space: nowrap;
           <div class="jd-sidebar">
  
             <div class="jd-apply-card">
-              <div class="jd-apply-salary">  <?php echo $jobs['salary']; ?>  </div>
+              <div class="jd-apply-salary"> <?php echo htmlspecialchars($jobs['salary']); ?> </div>
               <div class="jd-apply-salary-sub">Per year · Full-Time · Remote</div>  
               
-              <?php  if( $jobs['user_id'] != $_SESSION['user_id'] && $_SESSION["role"] != "employer") { ?> 
+              <?php if( $jobs['user_id'] != $_SESSION['user_id'] && $_SESSION["role"] != "employer") { ?> 
 
-              <form method="POST">
-               <?php  if(mysqli_num_rows($applications) >= 1 ){ ?>
-               <button name="apply-job" class="btn-apply-now">
-                   <i class="bi bi-send-fill">Applied </i> <i class="fs-3 fa-regular fa-circle-check" style="color: rgb(60, 255, 0);"></i>
-               </button>
-               <?php   } else{ ?>
-      <button name="apply-job" class="btn-apply-now">
-          <i class="bi bi-send-fill">Apply Now </i> 
-      </button>
-      <?php } ?>
-    </form>  
-                   <?php
-                     }elseif( $jobs['user_id'] == $_SESSION['user_id'] && $_SESSION["role"] == "employer") {                     ?> 
-                      <button disabled class="btn-apply-now">
-                <i class="bi bi-send-fill"></i>  This Is Your Job Posting  
-</button>  <?php  } ?>
+                <form method="POST">
+                  <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
+                  <?php if(mysqli_num_rows($applications) >= 1 ){ ?>
+                    <button name="apply-job" class="btn-apply-now">
+                      <i class="bi bi-send-fill"></i> Applied <i class="fs-3 fa-regular fa-circle-check" style="color: rgb(60, 255, 0);"></i>
+                    </button>
+                  <?php } else { ?>
+                    <button name="apply-job" class="btn-apply-now">
+                      <i class="bi bi-send-fill"></i> Apply Now
+                    </button>
+                  <?php } ?>
+                </form>  
+
+              <?php } elseif( $jobs['user_id'] == $_SESSION['user_id'] && $_SESSION["role"] == "employer") { ?> 
+                <button disabled class="btn-apply-now">
+                  <i class="bi bi-send-fill"></i> This Is Your Job Posting  
+                </button>
+              <?php } ?>
+
               <?php
-               if( $jobs['user_id'] != $_SESSION['user_id'] && $_SESSION["role"] != "employer") { 
-$job_id = $_GET["id"];
-$userid = $_SESSION["user_id"];
-$checkQuery = "SELECT * FROM saved_jobs WHERE user_id='$userid' AND job_id='$job_id'";
-$checkResult = mysqli_query($conn, $checkQuery);
-if (mysqli_num_rows($checkResult) > 0) { ?>
-    <a class="btn-save-job" href="./applicant/save-jobs.php?id=<?php echo $jobs['id']; ?>">
-                  <i class="bi bi-bookmark"></i> Already Saved
-                  <!-- <i class="fs-4 fa-solid fa-circle-check" style="color: rgb(60, 255, 0);"></i> -->
-                  <i class="fs-3 fa-regular fa-circle-check" style="color: rgb(60, 255, 0);"></i>
+              if( $jobs['user_id'] != $_SESSION['user_id'] && $_SESSION["role"] != "employer") { 
+                $id = (int)$_GET["id"];
+                $checkQuery = "SELECT id FROM saved_jobs WHERE user_id=? AND job_id=?";
+                $checkResult = mysqli_execute_query($conn, $checkQuery, [$userid, $id]);
 
-                </a>
-
-    <?php 
-    }else{ ?>
-  <a class="btn-save-job" href="./applicant/save-jobs.php?id=<?php echo $jobs['id']; ?>">
-                  <i class="bi bi-bookmark"></i> Save this Job 
-                </a>
-
-                <?php   }}elseif($jobs['user_id'] == $_SESSION['user_id'] && $_SESSION["role"] == "employer"){ ?>
-   <a class="btn-save-job" href="./employer/add-manage-jobs.php?tab=manage-jobs">
+                if (mysqli_num_rows($checkResult) > 0) { ?>
+                  <form action="./applicant/save-jobs.php" method="POST" style="margin-top: 10px;">
+                    <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
+                    <input type="hidden" name="id" value="<?php echo $id; ?>">
+                    <button type="submit" class="btn-save-job" style="width: 100%; border: none; cursor: pointer; text-align: center; justify-content: center; display: flex; align-items: center; gap: 8px;">
+                      <i class="bi bi-bookmark"></i> Already Saved
+                      <i class="fs-3 fa-regular fa-circle-check" style="color: rgb(60, 255, 0);"></i>
+                    </button>
+                  </form>
+                <?php } else { ?>
+                  <form action="./applicant/save-jobs.php" method="POST" style="margin-top: 10px;">
+                    <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
+                    <input type="hidden" name="id" value="<?php echo $id; ?>">
+                    <button type="submit" class="btn-save-job" style="width: 100%; border: none; cursor: pointer; text-align: center; justify-content: center; display: flex; align-items: center; gap: 8px;">
+                      <i class="bi bi-bookmark"></i> Save this Job 
+                    </button>
+                  </form>
+                <?php } 
+              } elseif($jobs['user_id'] == $_SESSION['user_id'] && $_SESSION["role"] == "employer") { ?>
+                <a class="btn-save-job" href="./employer/add-manage-jobs.php?tab=manage-jobs">
                   <i class="bi bi-bookmark"></i> Manage Job
                 </a>
- <?php }   ?>  
- <?php if($_SESSION["role"] == "admin"){ ?>
- <a class="btn-save-job mt-3" href="./employer/add-manage-jobs.php?tab=manage-jobs">
+              <?php } ?>  
+
+              <?php if($_SESSION["role"] == "admin"){ ?>
+                <a class="btn-save-job mt-3" href="./employer/add-manage-jobs.php?tab=manage-jobs">
                   <i class="bi bi-bookmark"></i> Manage Job
                 </a>
- <?php } ?>
+              <?php } ?>
+
               <div class="jd-apply-note">
                 <i class="bi bi-shield-check"></i>
                 Your application is 100% secure
               </div>
             </div>
-  
-               
-                         
           </div> 
         </div> 
               
@@ -873,5 +949,6 @@ if (mysqli_num_rows($checkResult) > 0) { ?>
   
  <?php     
     include './includes/footer.php'; 
- ?>     
- 
+ ?>         
+
+

@@ -5,31 +5,30 @@ include("includes/config.php");
 $query1 = "SELECT COUNT(*) AS total FROM jobs WHERE status = 'open'";
 $result1 = mysqli_query($conn, $query1);
 $row1 = mysqli_fetch_assoc($result1);
-$totalJobs = $row1['total'];
+$totalJobs = (int)$row1['total'];
 
 $query2 = "SELECT COUNT(*) AS total FROM categories";
 $result2 = mysqli_query($conn, $query2);
 $row2 = mysqli_fetch_assoc($result2);
-$totalCategories = $row2['total'];
+$totalCategories = (int)$row2['total'];
 
 $query3 = "SELECT COUNT(*) AS total FROM users WHERE role = 'applicant'";
 $result3 = mysqli_query($conn, $query3);
 $row3 = mysqli_fetch_assoc($result3);
-$totalProfessionals = $row3['total'];
+$totalProfessionals = (int)$row3['total'];
 
 $query4 = "SELECT COUNT(*) AS total FROM applications WHERE status = 'accepted'";
 $result4 = mysqli_query($conn, $query4);
 $row4 = mysqli_fetch_assoc($result4);
-$totalHired = $row4['total'];
+$totalHired = (int)$row4['total'];
 
 $categories = [];
 $query5 = "SELECT id, name FROM categories ORDER BY name ASC";
 $result5 = mysqli_query($conn, $query5);
- 
+
 while ($row5 = mysqli_fetch_assoc($result5)) {
-    $row5['icon'] = 'bi-briefcase';
- 
-    $categories[] = $row5;
+  $row5['icon'] = 'bi-briefcase';
+  $categories[] = $row5;
 }
 ?>
 
@@ -549,7 +548,7 @@ while ($row5 = mysqli_fetch_assoc($result5)) {
         </p>
         <div class="hero-actions">
           <a href="jobs.php" class="btn-accent"><i class="bi bi-search"></i> Browse Jobs</a>
-          <a href="post-job.php" class="btn-outline-accent"><i class="bi bi-plus-circle"></i> Post a Job</a>
+          <a href="./employer/add-manage-jobs.php" class="btn-outline-accent"><i class="bi bi-plus-circle"></i> Post a Job</a>
         </div>
       </div>
 
@@ -702,28 +701,28 @@ while ($row5 = mysqli_fetch_assoc($result5)) {
     </div>
   </section>
 
- <?php if (!empty($categories)) { ?>
+  <?php if (!empty($categories)) { ?>
     <section class="about-categories">
-        <div class="container-narrow">
-            <div class="section-head">
-                <span class="eyebrow">What We Cover</span>
-                <h2>Job categories on our platform</h2>
-                <p>From development to design to marketing — find work across the fields that matter most.</p>
-            </div>
- 
-            <div class="categories-grid">
-                <?php foreach ($categories as $cat) { ?>
-                <a href="jobs.php?filter=<?php echo (int)$cat['id']; ?>&submit-filter=#jobs-section" class="category-chip" style="text-decoration:none;">
-                    <div class="cat-icon">
-                        <i class="bi <?php echo $cat['icon']; ?>"></i>
-                    </div>
-                    <h4><?php echo htmlspecialchars($cat['name']); ?></h4>
-                </a>
-                <?php } ?>
-            </div>
+      <div class="container-narrow">
+        <div class="section-head">
+          <span class="eyebrow">What We Cover</span>
+          <h2>Job categories on our platform</h2>
+          <p>From development to design to marketing — find work across the fields that matter most.</p>
         </div>
+
+        <div class="categories-grid">
+          <?php foreach ($categories as $cat) { ?>
+            <a href="jobs.php?filter=<?php echo (int)$cat['id']; ?>&submit-filter=1#jobs-section" class="category-chip" style="text-decoration:none;">
+              <div class="cat-icon">
+                <i class="bi <?php echo $cat['icon']; ?>"></i>
+              </div>
+              <h4><?php echo htmlspecialchars($cat['name']); ?></h4>
+            </a>
+          <?php } ?>
+        </div>
+      </div>
     </section>
-    <?php } ?>
+  <?php } ?>
 
   <section class="about-values">
     <div class="container-narrow">
@@ -763,8 +762,8 @@ while ($row5 = mysqli_fetch_assoc($result5)) {
         <h2>Ready to get started?</h2>
         <p>Join as an applicant to find your next role, or as an employer to find your next hire.</p>
         <div class="hero-actions">
-          <?php if(!isset($_SESSION['user_id'])){  ?>
-          <a href="register.php" class="btn-accent"><i class="bi bi-person-plus"></i> Create an Account</a>
+          <?php if (!isset($_SESSION['user_id'])) {  ?>
+            <a href="register.php" class="btn-accent"><i class="bi bi-person-plus"></i> Create an Account</a>
           <?php } ?>
           <a href="jobs.php" class="btn-outline-accent" style="border-color: var(--contrast-color); color: var(--contrast-color);">
             <i class="bi bi-briefcase"></i> View Open Jobs
@@ -777,5 +776,3 @@ while ($row5 = mysqli_fetch_assoc($result5)) {
 </main>
 
 <?php include "includes/footer.php";  ?>
-
-</div>

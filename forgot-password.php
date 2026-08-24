@@ -3,17 +3,33 @@ session_start();
 include("includes/config.php");
 
 if (isset($_POST['check_email'])) {
-    $email = $_POST['email'];
+    $email = mysqli_real_escape_string($conn, $_POST['email']);
 
-    $query = "SELECT * FROM users WHERE email='$email' ";
+    $query = "SELECT id FROM users WHERE email=? ";
 
-    $result = mysqli_query($conn, $query);
+    $result = mysqli_execute_query($conn, $query,[$email]);
 
     if (mysqli_num_rows($result) > 0) {
-        header("Location: reset-password.php?email=$email");
-    } else {
-        echo "Email Not Found";
-    }
+        $token = bin2hex(random_bytes(32));
+        $expiry = date("Y-m-d H:i:s", strtotime("+30 minutes"));
+        $query = "update users set reset_token = ?, reset_token_expiry = ? where email = ?";
+        $result = mysqli_execute_query($conn, $query,[$token,$expiry,$email]);
+        if ($result) {
+            $url = "http://localhost/job-portal/reset-password.php?email=$email&token=$token";
+            $to = $email;
+            $subject = "Password Reset Link";
+            $message = "Click on the link to reset your password: $url";
+            require "mail/mail.php";
+            if(sendMail($to, $subject, $message)){
+                $success = "If this email is registered, a password reset link has been sent to your email.";
+            }else{
+                $error = "Email Not Sent";
+            }
+        }
+        // else {
+        //     echo "Email Not Found";
+        // }
+        }
 }
 include("includes/header.php");
 ?>
@@ -30,7 +46,7 @@ include("includes/header.php");
         color: var(--default-color);
         min-height: 100vh;
         /* Screen ke perfectly center me lane ke liye */
-        overflow: hidden;
+        /* overflow: hidden; */
         /* 100vh ke under pakka bound rakhne ke liye */
         padding: 20px;
     }
@@ -164,6 +180,62 @@ include("includes/header.php");
             transform: translateY(0);
         }
     }
+
+    /* ---------- Success State ---------- */
+    .success-box {
+        background-color: rgba(22, 163, 74, 0.08);
+        border: 1px solid #bbf7d0;
+        border-radius: 14px;
+        padding: 24px 20px;
+        text-align: center;
+        margin-bottom: 8px;
+    }
+
+    .success-icon {
+        width: 56px;
+        height: 56px;
+        background: rgba(22, 163, 74, 0.12);
+        color: #16a34a;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 26px;
+        margin: 0 auto 14px;
+    }
+
+    .success-box h3 {
+        font-family: var(--heading-font);
+        color: var(--heading-color);
+        font-size: 17px;
+        font-weight: 800;
+        margin-bottom: 8px;
+    }
+
+    .success-box p {
+        font-size: 13.5px;
+        color: var(--default-color);
+        line-height: 1.6;
+        margin-bottom: 0;
+    }
+
+    .success-box .highlight-email {
+        color: var(--heading-color);
+        font-weight: 700;
+    }
+
+    .resend-note {
+        margin-top: 18px;
+        font-size: 12.5px;
+        color: #94a3b8;
+    }
+
+    @media (max-width: 480px) {
+    .forgot-password-card {
+        padding: 28px 20px;
+    }
+}
+
 </style>
 
 <body>
@@ -175,18 +247,27 @@ include("includes/header.php");
 
             <h2>Forgot Password?</h2>
             <p>Enter your email address below and we will send you instructions to reset your password.</p>
-
-            <form method="POST">
-                <div class="form-group">
-                    <i class="bi bi-envelope"></i>
-                    <input type="email" name="email" placeholder="Enter Registered Email" required>
+            <?php if (!empty($success)) { ?>
+                <div class="success-box">
+                    <div class="success-icon">
+                        <i class="bi bi-envelope-check-fill"></i>
+                    </div>
+                    <h3>Check your inbox</h3>
+                    <p><?php echo $success; ?></p>
                 </div>
+                <p class="resend-note">Didn't get the email? Check your spam folder, or try again in a few minutes.</p>
+            <?php } else { ?>
+                <form method="POST">
+                    <div class="form-group">
+                        <i class="bi bi-envelope"></i>
+                        <input type="email" name="email" placeholder="Enter Registered Email" required>
+                    </div>
 
-                <button type="submit" name="check_email" class="btn-submit">
-                    Continue <i class="bi bi-arrow-right-short fs-5 align-middle"></i>
-                </button>
-            </form>
-
+                    <button type="submit" name="check_email" class="btn-submit">
+                        Continue <i class="bi bi-arrow-right-short fs-5 align-middle"></i>
+                    </button>
+                </form>
+            <?php } ?>
             <a href="./login.php" class="back-to-login">
                 <i class="bi bi-arrow-left"></i> Back to Login
             </a>

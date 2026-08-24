@@ -3,6 +3,7 @@ require_once './includes/config.php';
 session_start();
 if (!isset($_SESSION["user_id"])) {
     header("Location: login.php");
+    exit();
 };
 
 if (!isset($_GET['id'])) {
@@ -10,7 +11,8 @@ if (!isset($_GET['id'])) {
 }
 
 $id = intval($_GET['id']);
-$result = mysqli_query($conn, "SELECT * FROM users WHERE id = $id AND role = 'employer'");
+
+$result = mysqli_execute_query($conn, "SELECT * FROM users WHERE id = ? AND role = 'employer'", [$id]);
 $company = mysqli_fetch_assoc($result);
 
 if (!$company) {
@@ -18,11 +20,23 @@ if (!$company) {
     exit();
 }
 
-$jobs_result = mysqli_query($conn, "SELECT *,jobs.id as job_id,categories.name AS cat_name FROM jobs inner join categories on jobs.category_id = categories.id WHERE user_id = $id AND status = 'open' ORDER BY jobs.id DESC");
+$jobs_result = mysqli_execute_query($conn, "SELECT *,jobs.id as job_id,categories.name AS cat_name FROM jobs inner join categories on jobs.category_id = categories.id WHERE user_id = ? AND status = 'open' ORDER BY jobs.id DESC", [$id]);
 
-$total_jobs_query = "select count(*) as total_jobs from jobs where user_id = $id and status = 'open'";
-$total_jobs_result = mysqli_query($conn, $total_jobs_query);
+$total_jobs_result = mysqli_execute_query($conn, "select count(*) as total_jobs from jobs where user_id = ? and status = 'open' and approval_status = 'approved'", [$id]);
 $total_jobs = mysqli_fetch_assoc($total_jobs_result);
+
+// Ye check karta hai ke link http:// ya https:// se shuru ho, warna kuch mat dikhao
+// javascript:... jaisi malicious values ko render hone se rokta hai
+function safeUrl($url) {
+    if (empty($url)) {
+        return "";
+    }
+    if (preg_match('/^https?:\/\//i', $url)) {
+        return htmlspecialchars($url);
+    }
+    return "";
+}
+
 require_once './includes/header.php';
 ?>
 
@@ -34,17 +48,17 @@ require_once './includes/header.php';
 
                 <div class="col-md-2 text-center mb-3 mb-md-0">
                     <?php if (!empty($company['company_logo'])) { ?>
-                        <img src="uploads/company_logos/<?php echo $company['company_logo']; ?>" width="120" height="120" style="object-fit:cover; border-radius:5px;">
+                        <img src="uploads/company_logos/<?php echo htmlspecialchars($company['company_logo']); ?>" width="120" height="120" style="object-fit:cover; border-radius:5px;">
                     <?php } else { ?>
                         <img src="assets/img/default_company.png" width="120" height="120" style="object-fit:cover; border-radius:5px;">
                     <?php } ?>
                 </div>
 
                 <div class="col-md-10">
-                    <h3><?php echo $company['company_name']; ?></h3>
-                    <p class="mb-1"><?php echo $total_jobs['total_jobs']; ?></p>
-                    <p class="mb-1"><?php echo $company['company_industry']; ?></p>
-                    <p class="mb-1"><?php echo $company['company_city']; ?></p>
+                    <h3><?php echo htmlspecialchars($company['company_name'] ?? 'N/A'); ?></h3>
+                    <p class="mb-1"><?php echo (int)$total_jobs['total_jobs']; ?> active job(s)</p>
+                    <p class="mb-1"><?php echo htmlspecialchars($company['company_industry'] ?? 'N/A'); ?></p>
+                    <p class="mb-1"><?php echo htmlspecialchars($company['company_city'] ?? 'N/A'); ?></p>
                 </div>
 
             </div>
@@ -55,29 +69,30 @@ require_once './includes/header.php';
 
                 <div class="col-md-6">
                     <strong>About Company</strong>
-                    <p><?php echo !empty($company['company_about']) ? nl2br($company['company_about']) : 'N/A'; ?>
-</p>
+                    <p><?php echo !empty($company['company_about']) ? nl2br(htmlspecialchars($company['company_about'])) : 'N/A'; ?></p>
                 </div>
 
                 <div class="col-md-6">
-                    <p><strong>Company Size:</strong> <?php echo !empty($company['company_size']) ? $company['company_size'] : 'N/A'; ?> </p>
-                    <p><strong>Founded Year:</strong> <?php echo !empty($company['company_founded_year']) ? $company['company_founded_year'] : 'N/A'; ?></p>
+                    <p><strong>Company Size:</strong> <?php echo !empty($company['company_size']) ? htmlspecialchars($company['company_size']) : 'N/A'; ?> </p>
+                    <p><strong>Founded Year:</strong> <?php echo !empty($company['company_founded_year']) ? htmlspecialchars($company['company_founded_year']) : 'N/A'; ?></p>
 
                     <p><strong>Website:</strong>
-                        <?php if (!empty($company['company_website'])) { ?>
-                            <a href="<?php echo $company['company_website']; ?>" target="_blank"><?php echo $company['company_website']; ?></a>
+                        <?php $website = safeUrl($company['company_website'] ?? ''); ?>
+                        <?php if (!empty($website)) { ?>
+                            <a href="<?php echo $website; ?>" target="_blank" rel="noopener noreferrer"><?php echo $website; ?></a>
                         <?php } else { ?>
                             N/A
                         <?php } ?>
                     </p>
 
-                    <p><strong>Email:</strong> <?php echo !empty($company['company_email']) ? $company['company_email'] : 'N/A'; ?>  </p>
-                    <p><strong>Phone:</strong> <?php echo !empty($company['company_phone']) ? $company['company_phone'] : 'N/A'; ?>  </p>
-                    <p><strong>Address:</strong> <?php echo !empty($company['company_address']) ? nl2br($company['company_address']) : 'N/A'; ?> </p>
+                    <p><strong>Email:</strong> <?php echo !empty($company['company_email']) ? htmlspecialchars($company['company_email']) : 'N/A'; ?>  </p>
+                    <p><strong>Phone:</strong> <?php echo !empty($company['company_phone']) ? htmlspecialchars($company['company_phone']) : 'N/A'; ?>  </p>
+                    <p><strong>Address:</strong> <?php echo !empty($company['company_address']) ? nl2br(htmlspecialchars($company['company_address'])) : 'N/A'; ?> </p>
 
                     <p><strong>LinkedIn:</strong>
-                        <?php if (!empty($company['company_linkedin'])) { ?>
-                            <a href="<?php echo $company['company_linkedin']; ?>" target="_blank"><?php echo $company['company_linkedin']; ?></a>
+                        <?php $linkedin = safeUrl($company['company_linkedin'] ?? ''); ?>
+                        <?php if (!empty($linkedin)) { ?>
+                            <a href="<?php echo $linkedin; ?>" target="_blank" rel="noopener noreferrer"><?php echo $linkedin; ?></a>
                         <?php } else { ?>
                             N/A
                         <?php } ?>
@@ -101,13 +116,13 @@ require_once './includes/header.php';
                     <div class="card shadow-sm h-100">
                         <div class="card-body">
 
-                            <h5><?php echo $job['title']; ?></h5>
-                            <p class="mb-1"><strong>Category:</strong> <?php echo $job['cat_name']; ?></p>
-                            <p class="mb-1"><strong>Location:</strong> <?php echo $job['location']; ?></p>
-                            <p class="mb-1"><strong>Salary:</strong> <?php echo $job['salary']; ?></p>
+                            <h5><?php echo htmlspecialchars($job['title']); ?></h5>
+                            <p class="mb-1"><strong>Category:</strong> <?php echo htmlspecialchars($job['cat_name']); ?></p>
+                            <p class="mb-1"><strong>Location:</strong> <?php echo htmlspecialchars($job['location']); ?></p>
+                            <p class="mb-1"><strong>Salary:</strong> <?php echo htmlspecialchars($job['salary']); ?></p>
                             <p class="mb-3"> <strong>Posted On:</strong> <?php echo date("d M Y", strtotime($job['created_at'])); ?> </p>
 
-                            <a href="job-details.php?id=<?php echo $job['job_id']; ?>" class="btn btn-primary btn-sm">View Details</a>
+                            <a href="job-details.php?id=<?php echo (int)$job['job_id']; ?>" class="btn btn-primary btn-sm">View Details</a>
                         </div>
                     </div>
                 </div>

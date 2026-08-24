@@ -1,39 +1,73 @@
 <?php session_start();
 include("../includes/config.php");
+require_once("../includes/csrf.php");
+
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
     header("Location: ../login.php");
     exit();
 }
-$message = ""; // Update Application Status Query
+
+$message = ""; 
+
+// Verify CSRF Token on POST Request
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $token = $_POST['csrf_token'] ?? '';
+    if (!verifyCsrfToken($token)) {
+        die("Invalid CSRF Token.");
+    }
+}
+
+// Update Application Status Query
 if (isset($_POST['update_status'])) {
     $appId = $_POST['application_id'];
     $newStatus = $_POST['status'];
     if ($newStatus == "pending" || $newStatus == "accepted" || $newStatus == "rejected") {
-        $updatestatusquery = "UPDATE applications SET status='$newStatus' WHERE id='$appId'";
-        $updatestatusqueryresult = mysqli_query($conn, $updatestatusquery);
+        $updatestatusquery = "UPDATE applications SET status=? WHERE id=?";
+        $updatestatusqueryresult = mysqli_execute_query($conn, $updatestatusquery, [$newStatus, $appId]);
         if ($updatestatusqueryresult) {
             $message = "Application status updated successfully";
         }
     }
-} // Delete Application Query
+} 
+
+// Delete Application Query
 if (isset($_POST['delete_application_id'])) {
     $deleteId = $_POST['delete_application_id'];
-    $deletequery = "DELETE FROM applications WHERE id='$deleteId'";
-    $deletequeryresult = mysqli_query($conn, $deletequery);
+    $deletequery = "DELETE FROM applications WHERE id=?";
+    $deletequeryresult = mysqli_execute_query($conn, $deletequery, [$deleteId]);
     if ($deletequeryresult) {
         $message = "Application deleted successfully";
     }
-} // Applications Query 
+} 
+
+// Applications Query 
 $statusFilter = "all";
 if (isset($_GET['status'])) {
     $statusFilter = $_GET['status'];
 }
-$applicationsquery = "SELECT applications.*, jobs.title AS job_title, jobs.company AS job_company, users.fullname AS applicant_name, users.email AS applicant_email, users.cv_file FROM applications LEFT JOIN jobs ON applications.job_id = jobs.id LEFT JOIN users ON applications.applicant_id = users.id";
+
+$applicationsquery = "SELECT applications.*, jobs.title AS job_title, jobs.company AS job_company, users.fullname AS applicant_name, users.email AS applicant_email, users.cv_file FROM applications LEFT JOIN jobs ON applications.job_id = jobs.id LEFT JOIN users ON applications.applicant_id = users.id WHERE 1";
 if ($statusFilter != "all") {
-    $applicationsquery .= " WHERE applications.status='$statusFilter'";
+    $applicationsquery .= " AND applications.status='$statusFilter'";
 }
-$applicationsquery .= " ORDER BY applications.applied_at DESC";
-$applications = mysqli_query($conn, $applicationsquery);
+
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+if ($page < 1) { $page = 1; }
+$perPage = 10;
+$offset = ($page - 1) * $perPage;
+
+$countQuery = str_replace(
+    "SELECT applications.*, jobs.title AS job_title, jobs.company AS job_company, users.fullname AS applicant_name, users.email AS applicant_email, users.cv_file FROM applications",
+    "SELECT COUNT(*) as total FROM applications",
+    $applicationsquery
+);
+$countResult = mysqli_query($conn, $countQuery);
+$totalApplications = mysqli_fetch_assoc($countResult)['total'];
+$totalPages = ceil($totalApplications / $perPage);
+
+// Query 2: asal data, LIMIT/OFFSET ke sath
+$applicationsquery .= " ORDER BY applications.applied_at DESC LIMIT ? OFFSET ?";
+$applications = mysqli_execute_query($conn, $applicationsquery, [$perPage, $offset]);
 ?>
 
 <style>
@@ -216,6 +250,42 @@ $applications = mysqli_query($conn, $applicationsquery);
         color: var(--default-color);
     }
 
+    .pagination-wrap {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        margin-top: 30px;
+        flex-wrap: wrap;
+    }
+
+    .page-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 38px;
+        height: 38px;
+        padding: 0 6px;
+        border-radius: 8px;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        color: #475569;
+        font-size: 14px;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .page-link:hover {
+        border-color: #0ea5e9;
+        color: #0ea5e9;
+        text-decoration: none;
+    }
+
+    .page-link.active {
+        background: #0ea5e9;
+        color: #fff;
+        border-color: #0ea5e9;
+    }
+
     @media (max-width: 576px) {
         .status-tabs {
             overflow-x: auto;
@@ -224,18 +294,18 @@ $applications = mysqli_query($conn, $applicationsquery);
         }
     }
 </style>
+
 <?php include "../includes/header.php" ?>
 <section class="admin-applications">
     <h1>Manage Applications</h1>
-    <p class="subtitle"> Track and update all job applications </p> <?php if ($message != "") { ?> <div class="alert-msg"> <?php echo $message; ?> </div> <?php } ?> <div class="status-tabs"> <a href="?status=all" class="<?php if ($statusFilter == 'all') {
-                                                                                                                                                                                                                                echo 'active';
-                                                                                                                                                                                                                            } ?>"> All </a> <a href="?status=pending" class="<?php if ($statusFilter == 'pending') {
-                                                                                                                                                                                                                                                                                    echo 'active';
-                                                                                                                                                                                                                                                                                } ?>"> Pending </a> <a href="?status=accepted" class="<?php if ($statusFilter == 'accepted') {
-                                                                                                                                                                                                                                                                                                                                                                                        echo 'active';
-                                                                                                                                                                                                                                                                                                                                                                                    } ?>"> Accepted </a> <a href="?status=rejected" class="<?php if ($statusFilter == 'rejected') {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    echo 'active';
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                } ?>"> Rejected </a> </div>
+    <p class="subtitle"> Track and update all job applications </p>
+    <?php if ($message != "") { ?> <div class="alert-msg"> <?php echo $message; ?> </div> <?php } ?>
+    <div class="status-tabs">
+        <a href="?status=all" class="<?php if ($statusFilter == 'all') { echo 'active'; } ?>"> All </a>
+        <a href="?status=pending" class="<?php if ($statusFilter == 'pending') { echo 'active'; } ?>"> Pending </a>
+        <a href="?status=accepted" class="<?php if ($statusFilter == 'accepted') { echo 'active'; } ?>"> Accepted </a>
+        <a href="?status=rejected" class="<?php if ($statusFilter == 'rejected') { echo 'active'; } ?>"> Rejected </a>
+    </div>
     <div class="applications-table-wrap">
         <table class="applications-table">
             <thead>
@@ -248,34 +318,58 @@ $applications = mysqli_query($conn, $applicationsquery);
                     <th>Actions</th>
                 </tr>
             </thead>
-            <tbody> <?php if (mysqli_num_rows($applications) > 0) {
-                        while ($app = mysqli_fetch_assoc($applications)) { ?> <tr>
+            <tbody>
+                <?php if (mysqli_num_rows($applications) > 0) {
+                    while ($app = mysqli_fetch_assoc($applications)) { ?>
+                        <tr>
                             <td> <strong> <?php echo $app['applicant_name']; ?> </strong> <span class="sub"> <?php echo $app['applicant_email']; ?> </span> </td>
                             <td> <strong> <?php echo $app['job_title']; ?> </strong> <span class="sub"> <?php echo $app['job_company']; ?> </span> </td>
                             <td> <?php echo date("d M Y", strtotime($app['applied_at'])); ?> </td>
                             <td> <span class="status-badge <?php echo $app['status']; ?>"> <?php echo $app['status']; ?> </span> </td>
                             <td>
-                                <form method="POST" style="display:flex; gap:8px;"> <input type="hidden" name="application_id" value="<?php echo $app['id']; ?>"> <select name="status" class="status-select" onchange="this.form.submit()">
-                                        <option value="pending" <?php if ($app['status'] == 'pending') {
-                                                                    echo 'selected';
-                                                                } ?>> Pending </option>
-                                        <option value="accepted" <?php if ($app['status'] == 'accepted') {
-                                                                        echo 'selected';
-                                                                    } ?>> Accepted </option>
-                                        <option value="rejected" <?php if ($app['status'] == 'rejected') {
-                                                                        echo 'selected';
-                                                                    } ?>> Rejected </option>
-                                    </select> <input type="hidden" name="update_status" value="1"> </form>
+                                <form method="POST" style="display:flex; gap:8px;">
+                                    <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
+                                    <input type="hidden" name="application_id" value="<?php echo $app['id']; ?>">
+                                    <select name="status" class="status-select" onchange="this.form.submit()">
+                                        <option value="pending" <?php if ($app['status'] == 'pending') { echo 'selected'; } ?>> Pending </option>
+                                        <option value="accepted" <?php if ($app['status'] == 'accepted') { echo 'selected'; } ?>> Accepted </option>
+                                        <option value="rejected" <?php if ($app['status'] == 'rejected') { echo 'selected'; } ?>> Rejected </option>
+                                    </select>
+                                    <input type="hidden" name="update_status" value="1">
+                                </form>
                             </td>
                             <td>
-                                <div class="action-btns"> <?php if ($app['cv_file'] != "") { ?> <a class="btn-icon btn-view" href="../uploads/cv/<?php echo $app['cv_file']; ?>" target="_blank"> <i class="bi bi-file-earmark-person"></i> CV </a> <?php } ?> <form method="POST" onsubmit="return confirm('Do you want to delete this application?')"> <input type="hidden" name="delete_application_id" value="<?php echo $app['id']; ?>"> <button type="submit" class="btn-icon btn-delete"> <i class="bi bi-trash"></i> Delete </button> </form>
+                                <div class="action-btns">
+                                    <?php if ($app['cv_file'] != "") { ?>
+                                        <a class="btn-icon btn-view" href="../uploads/cv/<?php echo $app['cv_file']; ?>" target="_blank"> <i class="bi bi-file-earmark-person"></i> CV </a>
+                                    <?php } ?>
+                                    <form method="POST" onsubmit="return confirm('Do you want to delete this application?')">
+                                        <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
+                                        <input type="hidden" name="delete_application_id" value="<?php echo $app['id']; ?>">
+                                        <button type="submit" class="btn-icon btn-delete"> <i class="bi bi-trash"></i> Delete </button>
+                                    </form>
                                 </div>
                             </td>
-                        </tr> <?php }
-                        } else { ?> <tr>
+                        </tr>
+                    <?php }
+                } else { ?>
+                    <tr>
                         <td colspan="6" class="no-data"> No applications found </td>
-                    </tr> <?php } ?> </tbody>
+                    </tr>
+                <?php } ?>
+            </tbody>
         </table>
     </div>
+
+    <?php if ($totalPages > 1) { ?>
+        <div class="pagination-wrap">
+            <?php for ($i = 1; $i <= $totalPages; $i++) { ?>
+                <a href="?page=<?php echo $i; ?>&status=<?php echo htmlspecialchars($statusFilter); ?>"
+                   class="page-link <?php echo ($i == $page) ? 'active' : ''; ?>">
+                    <?php echo $i; ?>
+                </a>
+            <?php } ?>
+        </div>
+    <?php } ?>
 </section>
 <?php include "../includes/footer.php" ?>

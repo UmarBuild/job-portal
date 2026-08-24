@@ -1,30 +1,61 @@
 <?php
 session_start();
-include "includes/config.php";  
+include "includes/config.php";
 
-$successMsg = "";
+$error = [];
 
 // ---------------- CONTACT FORM SUBMIT ----------------
 if (isset($_POST['send_message'])) {
-    $name = $_POST['name'];
-    $email = $_POST['email'];
-    $subject = $_POST['subject'];
-    $message = $_POST['message'];
 
-    // contact_messages table me naya message insert karo
-    $insertQuery = "insert into contact_messages (name, email, subject, message) values ('$name', '$email', '$subject', '$message')";
-    $insertResult = mysqli_query($conn, $insertQuery);
+    $name = trim($_POST['name']);
+    $email = trim($_POST['email']);
+    $subject = trim($_POST['subject']);
+    $message = trim($_POST['message']);
 
-    if ($insertResult) { ?>  
-        <script>
-            alert("Your message has been sent successfully! We will get back to you soon.");
-            window.location.href = "./contact.php";
-        </script>
-    <?php
-    } else {
-        $successMsg = "Something went wrong. Please try again.";
+    // ===== VALIDATION =====
+    if (empty($name)) {
+        $error[] = "Name is required.";
+    } elseif (strlen($name) > 100) {
+        $error[] = "Name must be under 100 characters.";
+    }
+
+    if (empty($email)) {
+        $error[] = "Email is required.";
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $error[] = "Please enter a valid email address.";
+    }
+
+    if (empty($subject)) {
+        $error[] = "Subject is required.";
+    } elseif (strlen($subject) > 150) {
+        $error[] = "Subject must be under 150 characters.";
+    }
+
+    if (empty($message)) {
+        $error[] = "Message is required.";
+    } elseif (strlen($message) < 10) {
+        $error[] = "Message must be at least 10 characters long.";
+    } elseif (strlen($message) > 2000) {
+        $error[] = "Message must be under 2000 characters.";
+    }
+
+    // ===== SIRF TAB INSERT KARO JAB KOI ERROR NA HO =====
+    if (count($error) == 0) {
+        $insertQuery = "insert into contact_messages (name, email, subject, message) values (?, ?, ?, ?)";
+        $insertResult = mysqli_execute_query($conn, $insertQuery, [$name, $email, $subject, $message]);
+
+        if ($insertResult) {
+            // POST-Redirect-GET: refresh karne se dobara submit nahi hoga
+            header("Location: contact.php?sent=1");
+            exit();
+        } else {
+            $error[] = "Something went wrong. Please try again.";
+        }
     }
 }
+
+// GET request ke through aaya hua success flag
+$showSuccess = isset($_GET['sent']) && $_GET['sent'] == '1';
 ?>
 
 <style>
@@ -174,13 +205,31 @@ if (isset($_POST['send_message'])) {
 }
 
 .success-banner {
-    background: rgba(14,165,233,0.10);
-    color: var(--accent-color);
-    border: 1px solid rgba(14,165,233,0.25);
-    padding: 12px 16px;
+    background: rgba(22,163,74,0.10);
+    color: #16a34a;
+    border: 1px solid rgba(22,163,74,0.3);
+    padding: 14px 16px;
     border-radius: 10px;
     font-size: 14px;
     margin-bottom: 22px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.error-banner {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #dc2626;
+    padding: 14px 16px;
+    border-radius: 10px;
+    font-size: 13.5px;
+    margin-bottom: 22px;
+}
+
+.error-banner ul {
+    margin: 0;
+    padding-left: 18px;
 }
 
 .form-row-2 {
@@ -351,30 +400,44 @@ if (isset($_POST['send_message'])) {
             <h2>Send us a message</h2>
             <p>Fill out the form below and we'll get back to you as soon as possible.</p>
 
-            <?php if (!empty($successMsg)) { ?>
-                <div class="success-banner"><?php echo $successMsg; ?></div>
+            <?php if ($showSuccess) { ?>
+                <div class="success-banner">
+                    <i class="bi bi-check-circle-fill"></i>
+                    <span>Your message has been sent successfully! We will get back to you soon.</span>
+                </div>
+            <?php } ?>
+
+            <?php if (!empty($error)) { ?>
+                <div class="error-banner">
+                    <ul>
+                        <?php foreach ($error as $e) { echo "<li>" . htmlspecialchars($e) . "</li>"; } ?>
+                    </ul>
+                </div>
             <?php } ?>
 
             <form method="POST">
                 <div class="form-row-2">
                     <div class="field-group">
                         <label for="name">Your Name</label>
-                        <input type="text" id="name" name="name" placeholder="e.g. Ali Khan" required>
+                        <input type="text" id="name" name="name" placeholder="e.g. Ali Khan" required
+                            value="<?php echo isset($_POST['name']) ? htmlspecialchars($_POST['name']) : ''; ?>">
                     </div>
                     <div class="field-group">
                         <label for="email">Your Email</label>
-                        <input type="email" id="email" name="email" placeholder="you@example.com" required>
+                        <input type="email" id="email" name="email" placeholder="you@example.com" required
+                            value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>">
                     </div>
                 </div>
 
                 <div class="field-group">
                     <label for="subject">Subject</label>
-                    <input type="text" id="subject" name="subject" placeholder="What is this about?" required>
+                    <input type="text" id="subject" name="subject" placeholder="What is this about?" required
+                        value="<?php echo isset($_POST['subject']) ? htmlspecialchars($_POST['subject']) : ''; ?>">
                 </div>
 
                 <div class="field-group">
                     <label for="message">Message</label>
-                    <textarea id="message" name="message" placeholder="Write your message here..." required></textarea>
+                    <textarea id="message" name="message" placeholder="Write your message here..." required><?php echo isset($_POST['message']) ? htmlspecialchars($_POST['message']) : ''; ?></textarea>
                 </div>
 
                 <button type="submit" name="send_message" class="btn-send">Send Message</button>

@@ -3,38 +3,78 @@ session_start();
 include "includes/config.php";
 
 $categoryQuery = "SELECT * FROM categories";
+$showCount = isset($_GET["show"]) ? (int)$_GET["show"] : 6;
 
 $categoryResult = mysqli_query($conn, $categoryQuery);
-if(isset($_GET["submit-filter"]) && !empty($_GET["filter"]) || isset($_GET["submit-search"]) && !empty($_GET["search"])){
-if (isset($_GET["submit-filter"]) && !empty($_GET["filter"])) {
-  $filter = $_GET["filter"];
-  $filterquery = "SELECT categories.name AS cat_name,users.company_logo,jobs.* from categories inner join jobs on jobs.category_id = categories.idINNER JOIN users on jobs.user_id = users.id where category_id = $filter and jobs.status = 'open' ";
-  $result = mysqli_query($conn, $filterquery);
-  if (!$result) {
-    echo "Filter Failed" . mysqli_error($conn);
+
+$totalCategoriesQuery = "select count(*) as total from categories";
+$totalCategoriesResult = mysqli_query($conn, $totalCategoriesQuery);
+$totalCategoriesRow = mysqli_fetch_assoc($totalCategoriesResult);
+$totalCategories = (int)$totalCategoriesRow['total'];
+
+$totalCompaniesQuery = "select count(distinct user_id) as total from jobs where status = 'open' and approval_status = 'approved'";
+$totalCompaniesResult = mysqli_query($conn, $totalCompaniesQuery);
+$totalCompaniesRow = mysqli_fetch_assoc($totalCompaniesResult);
+$totalCompanies = (int)$totalCompaniesRow['total'];
+
+if (isset($_GET["submit-filter"]) && !empty($_GET["filter"]) || isset($_GET["submit-search"]) && !empty($_GET["search"])) {
+
+  if (isset($_GET["submit-filter"]) && !empty($_GET["filter"])) {
+    $filter = (int)$_GET["filter"];
+
+    $filterquery = "SELECT categories.name AS cat_name,users.company_logo,jobs.* from categories 
+                     inner join jobs on jobs.category_id = categories.id 
+                     INNER JOIN users on jobs.user_id = users.id 
+                     where category_id = ? and jobs.status = 'open' and approval_status = 'approved' 
+                     order by jobs.id desc limit ?";
+    $result = mysqli_execute_query($conn, $filterquery, [$filter, $showCount]);
+    if (!$result) {
+      echo "Filter Failed" . mysqli_error($conn);
+    }
+
+    $countFilterQuery = "select count(*) as totalJobs from jobs where category_id = ? and status = 'open' and approval_status = 'approved'";
+    $countFilterResult = mysqli_execute_query($conn, $countFilterQuery, [$filter]);
+    $countFilterRow = mysqli_fetch_assoc($countFilterResult);
+    $totalJobs = (int)$countFilterRow['totalJobs'];
   }
-    } 
-  //  else
-if(isset($_GET["submit-search"]) && !empty($_GET["search"])){
-$search = $_GET["search"];  
-$query = "select *,users.company_logo,categories.name AS cat_name from jobs inner join categories on jobs.category_id = categories.idINNER JOIN users on jobs.user_id = users.id where title like '%$search%' and jobs.status = 'open' ";
-$result = mysqli_query($conn, $query);
-if (!$result) {
-echo "There Is An Error In Search Query". mysqli_error($conn);
-}
-};
+
+  if (isset($_GET["submit-search"]) && !empty($_GET["search"])) {
+    $search = "%" . trim($_GET["search"]) . "%";
+
+    $query = "select *,users.company_logo,categories.name AS cat_name from jobs 
+              inner join categories on jobs.category_id = categories.id 
+              INNER JOIN users on jobs.user_id = users.id 
+              where title like ? and jobs.status = 'open' and approval_status = 'approved' 
+              order by jobs.id desc limit ?";
+    $result = mysqli_execute_query($conn, $query, [$search, $showCount]);
+    if (!$result) {
+      echo "There Is An Error In Search Query" . mysqli_error($conn);
+    }
+
+    $countSearchQuery = "select count(*) as totalJobs from jobs where title like ? and status = 'open' and approval_status = 'approved'";
+    $countSearchResult = mysqli_execute_query($conn, $countSearchQuery, [$search]);
+    $countSearchRow = mysqli_fetch_assoc($countSearchResult);
+    $totalJobs = (int)$countSearchRow['totalJobs'];
+  };
+
 } else {
-      $showquery = "SELECT categories.name AS cat_name,users.company_logo, jobs.* FROM categories 
-                  INNER JOIN jobs ON jobs.category_id = categories.id INNER JOIN users on jobs.user_id = users.id  where jobs.status = 'open' ORDER BY jobs.id DESC";
-      $result = mysqli_query($conn, $showquery);
+  $showquery = "SELECT categories.name AS cat_name,users.company_logo, jobs.* FROM categories 
+                INNER JOIN jobs ON jobs.category_id = categories.id INNER JOIN users on jobs.user_id = users.id  
+                where jobs.status = 'open' and approval_status = 'approved' ORDER BY jobs.id DESC limit ?";
+  $result = mysqli_execute_query($conn, $showquery, [$showCount]);
+
+  $countJobsQuery = "select count(*) as totalJobs from jobs where jobs.status = 'open' and approval_status = 'approved'";
+  $countJobsResult = mysqli_query($conn, $countJobsQuery);
+  $countJobsRow = mysqli_fetch_assoc($countJobsResult);
+  $totalJobs = (int)$countJobsRow['totalJobs'];
 }
 ?>
+ 
 
 
 
 <head>
 <style>
-  /* ===== JOBS PAGE STYLES ===== */
 
   /* Hero Section */
   .jobs-hero {
@@ -706,10 +746,18 @@ echo "There Is An Error In Search Query". mysqli_error($conn);
     font-size: 13px;
   }
 
-  .job-card-footer {
+.job-footer-actions {
     display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+  .job-card-footer {
+  display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
     margin-top: auto;
     padding-top: 18px;
     border-top: 1px solid #f1f5f9;
@@ -879,12 +927,108 @@ echo "There Is An Error In Search Query". mysqli_error($conn);
       overflow-x: auto;
     }
   }
+  /* ===== Category Filter Form ===== */
+.category-filter-form {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface-color);
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+}
+
+.category-filter-form label {
+  color: var(--accent-color);
+  display: flex;
+  align-items: center;
+  margin: 0;
+}
+
+.category-filter-form select {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: var(--default-font);
+  font-size: 14px;
+  color: var(--heading-color);
+  padding: 6px 4px;
+  cursor: pointer;
+  min-width: 150px;
+}
+
+.category-filter-form .btn-filter {
+  background: var(--accent-color);
+  color: #fff;
+  border: none;
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s ease;
+}
+
+.category-filter-form .btn-filter:hover {
+  background: #0284c7;
+}
+
+/* ===== Search Form (filter tabs ke bagal wala) ===== */
+.job-search-form {
+  display: flex;
+  background: var(--surface-color);
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+}
+
+.job-search-form input[type="search"] {
+  border: none;
+  outline: none;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-family: var(--default-font);
+  color: var(--heading-color);
+  width: 220px;
+}
+
+.job-search-form input[type="search"]::placeholder {
+  color: #94a3b8;
+}
+
+.job-search-form .btn-do-search {
+  background: var(--heading-color);
+  color: #fff;
+  border: none;
+  padding: 0 20px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.job-search-form .btn-do-search:hover {
+  background: var(--accent-color);
+}
+
+@media (max-width: 767px) {
+  .category-filter-form,
+  .job-search-form {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .job-search-form input[type="search"] {
+    width: 100%;
+  }
+}
 </style>
 </head>
 <?php include 'includes/header.php'; ?>
 <main class="main">
 
-  <!-- Page Title / Breadcrumb -->
   <div class="page-title">
     <div class="breadcrumbs">
       <nav aria-label="breadcrumb">
@@ -908,7 +1052,7 @@ echo "There Is An Error In Search Query". mysqli_error($conn);
         <div class="col-lg-6" data-aos="fade-right" data-aos-delay="100">
           <div class="hero-badge">
             <i class="bi bi-lightning-charge-fill"></i>
-            <span>Hiring Now — 1,200+ Live Roles</span>
+            <span><?php echo $totalJobs; ?>+ Live Roles</span>
           </div>
 
           <h1>
@@ -920,7 +1064,7 @@ echo "There Is An Error In Search Query". mysqli_error($conn);
             We connect ambitious professionals with forward-thinking companies across tech, design, marketing, finance, and beyond. Your next career leap starts right here — search, apply, and get hired faster.
           </p>
 
-          <div class="hero-search-bar">
+          <!-- <div class="hero-search-bar">
             <input type="text" placeholder="Job title, skill, or keyword…">
             <div class="search-divider"></div>
             <select>
@@ -933,27 +1077,22 @@ echo "There Is An Error In Search Query". mysqli_error($conn);
             <button class="btn-search">
               <i class="bi bi-search"></i> Search
             </button>
-          </div>
+          </div> -->
 
           <div class="hero-stats">
             <div class="hero-stat">
-              <div class="num">12<span>k+</span></div>
+              <div class="num"><?php echo $totalJobs; ?></div>
               <div class="lbl">Active Jobs</div>
             </div>
             <div class="hero-stat-divider"></div>
             <div class="hero-stat">
-              <div class="num">3<span>k+</span></div>
+              <div class="num"><?php echo $totalCompanies; ?></div>
               <div class="lbl">Companies</div>
             </div>
             <div class="hero-stat-divider"></div>
             <div class="hero-stat">
-              <div class="num">98<span>%</span></div>
-              <div class="lbl">Success Rate</div>
-            </div>
-            <div class="hero-stat-divider"></div>
-            <div class="hero-stat">
-              <div class="num">50<span>+</span></div>
-              <div class="lbl">Industries</div>
+              <div class="num"><?php echo $totalCategories; ?></div>
+              <div class="lbl">Categories</div>
             </div>
           </div>
         </div>
@@ -976,23 +1115,6 @@ echo "There Is An Error In Search Query". mysqli_error($conn);
               </div>
               <div class="fc-salary">$95k – $130k / year</div>
             </div>
-
-            <!-- Floating Card Small -->
-            <div class="floating-card fc-small">
-              <div class="fc-s-title">Applications Today</div>
-              <div class="fc-s-value">284</div>
-              <div class="fc-s-sub">↑ 12% from yesterday</div>
-              <div class="fc-bar">
-                <div class="fc-bar-fill"></div>
-              </div>
-            </div>
-
-            <!-- Floating Tag -->
-            <div class="floating-card fc-tag">
-              <div class="fc-t-icon">🚀</div>
-              <div class="fc-t-label">New Today</div>
-              <div class="fc-t-value">47 Jobs</div>
-            </div>
           </div>
         </div>
 
@@ -1013,19 +1135,21 @@ echo "There Is An Error In Search Query". mysqli_error($conn);
           </div>
         </div>
         <div class="col-lg-5 text-lg-end mt-3 mt-lg-0">
-          <form method="GET" action="#jobs-section">
+          <form method="GET" action="#jobs-section" class="category-filter-form">
             <label><i class="bi bi-sliders fs-4"></i></label>
             <select name="filter">
-              <option selected disabled>Filter Category</option>
-              <option value="">All Category</option>
+              <option value="" <?php echo (!isset($_GET['filter']) || $_GET['filter'] === '') ? 'selected' : ''; ?>>All Category</option>
               <?php
+              mysqli_data_seek($categoryResult, 0);
               while ($categories = mysqli_fetch_assoc($categoryResult)) { ?>
-                <option value="<?php echo $categories["id"] ?>"><?php echo $categories["name"] ?></option>
+                <option value="<?php echo (int)$categories["id"]; ?>" <?php echo (isset($_GET['filter']) && (int)$_GET['filter'] === (int)$categories["id"]) ? 'selected' : ''; ?>>
+                  <?php echo htmlspecialchars($categories["name"]); ?>
+                </option>
               <?php
               }
               ?>
             </select>
-            <button type="submit" name="submit-filter">Filter Jobs</button>
+            <button type="submit" name="submit-filter" class="btn-filter" value="1">Filter Jobs</button>
           </form>
         </div>
       </div>
@@ -1033,88 +1157,78 @@ echo "There Is An Error In Search Query". mysqli_error($conn);
       <!-- Filter Tabs -->
       <div class="d-flex justify-content-between align-items-center">
         <div class="filter-tabs" data-aos="fade-up" data-aos-delay="150">
-          <button class="filter-tab active" onclick="window.location.href='./jobs.php#jobs-section'">All Jobs</button>
-          <!-- <button class="filter-tab">Remote</button>
-          <button class="filter-tab">Full-Time</button>
-          <button class="filter-tab">Part-Time</button>
-          <button class="filter-tab">Contract</button>
-          <button class="filter-tab">Internship</button> -->
+          <button class="filter-tab <?php echo (!isset($_GET['filter']) && !isset($_GET['search'])) ? 'active' : ''; ?>" onclick="window.location.href='./jobs.php#jobs-section'">All Jobs</button>
         </div>
-        <div>
-
-        </div>
-        <form action="#jobs-section" method="GET" class="d-flex gap-2">
-          <input type="search" class="" name="search" id="" value="<?php if(!empty($_GET["search"])){echo $_GET["search"];} ?>">
-          <button type="submit" name="submit-search" class="btn btn-outline-dark">Search</button>
+        <div></div>
+        <form action="#jobs-section" method="GET" class="job-search-form">
+          <input type="search" placeholder="Search by job title…" class="" name="search" id="" value="<?php echo !empty($_GET["search"]) ? htmlspecialchars($_GET["search"]) : ''; ?>">
+          <button type="submit" name="submit-search" class="btn-do-search">Search</button>
         </form>
       </div>
       <div class="results-count" data-aos="fade-up" data-aos-delay="160">
-        Showing <strong>12</strong> of <strong>1,248</strong> jobs
+        Showing <strong><?php echo min($showCount, $totalJobs); ?></strong> of <strong><?php echo $totalJobs; ?></strong> jobs
       </div>
 
       <!-- Job Cards Grid -->
       <div class="row g-4">
-        <?php while ($jobs = mysqli_fetch_assoc($result)) { ?>
-          <!-- Job Card 1 -->
-          <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="100">
-            <div class="job-card">
-              <span class="job-featured-badge"><i class="bi bi-star-fill"></i> Featured</span>
-              <div class="job-card-head">
-                <div class="job-logo" >
-                  <?php if (!empty($jobs['company_logo'])) { ?>
-                        <img src="uploads/company_logos/<?php echo $jobs['company_logo']; ?>" width="50" height="50" style="object-fit:cover; border-radius:5px;">
-                    <?php } else { ?>
-                        <img src="assets/img/default_company.png" width="50" height="50" style="object-fit:cover; border-radius:5px;">
-                    <?php } ?>
-                </div>
-                <div class="job-head-info">
-                  <h5 class="job-title"><?php echo $jobs['title'] ?></h5>
-                  <div class="">
-                    <div class="job-company"><i class="bi bi-buildings"></i><?php echo $jobs['company'] ?></div>
-<span><?php echo $jobs['cat_name'] ?></span>
+        <?php if (mysqli_num_rows($result) > 0) { ?>
+          <?php while ($jobs = mysqli_fetch_assoc($result)) { ?>
+            <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="100">
+              <div class="job-card">
+                <div class="job-card-head">
+                  <div class="job-logo">
+                    <?php if (!empty($jobs['company_logo'])) { ?>
+                          <img src="uploads/company_logos/<?php echo htmlspecialchars($jobs['company_logo']); ?>" width="50" height="50" style="object-fit:cover; border-radius:5px;">
+                      <?php } else { ?>
+                          <img src="assets/img/default_company.png" width="50" height="50" style="object-fit:cover; border-radius:5px;">
+                      <?php } ?>
+                  </div>
+                  <div class="job-head-info">
+                    <h5 class="job-title"><?php echo htmlspecialchars($jobs['title']); ?></h5>
+                    <div class="">
+                      <div class="job-company"><i class="bi bi-buildings"></i><?php echo htmlspecialchars($jobs['company']); ?></div>
+                      <span><?php echo htmlspecialchars($jobs['cat_name']); ?></span>
+                    </div>
                   </div>
                 </div>
-
-              </div>
-              <div class="job-posted"><i class="bi bi-clock"></i> <?php echo $jobs['created_at'];  ?> </div>
-              <!-- <div class="job-tags">
-              <span class="job-tag type-full">Full-Time</span>
-              <span class="job-tag type-remote">Remote</span>
-              <span class="job-tag level">Mid-Level</span>
-            </div> -->
-              <div class="job-meta-row">
-                <div class="job-meta-item"><i class="bi bi-geo-alt"></i> <?php echo $jobs['location'] ?> </div>
-                <div class="job-meta-item"><i class="bi bi-cash-stack"></i> <?php echo $jobs['job_type'] ?> </div>
-              </div>
-              <div class="job-card-footer">
-                <div>
-                  <div class="job-salary"> <?php echo $jobs['salary'] ?> <span>/ year</span></div>
+                <div class="job-posted"><i class="bi bi-clock"></i> <?php echo date('d M Y', strtotime($jobs['created_at'])); ?> </div>
+                <div class="job-meta-row">
+                  <div class="job-meta-item"><i class="bi bi-geo-alt"></i> <?php echo htmlspecialchars($jobs['location']); ?> </div>
+                  <div class="job-meta-item"><i class="bi bi-cash-stack"></i> <?php echo htmlspecialchars($jobs['job_type']); ?> </div>
                 </div>
-                <a href="/job-portal/job-details.php?id=<?php echo $jobs['id'] ?>" class="btn-view-details">
-                  View Details <i class="bi bi-arrow-right"></i>
-                </a>
-                <a href="/job-portal/company.php?id=<?php echo $jobs['user_id']; ?>" class="btn-view-details">View Company</a>
+                <div class="job-card-footer">
+                  <div>
+                      <div class="job-salary"><?php echo htmlspecialchars($jobs['salary']); ?> <span>/ year</span></div>
+                  </div>
+                  <div class="job-footer-actions">
+                      <a href="/job-portal/job-details.php?id=<?php echo (int)$jobs['id']; ?>" class="btn-view-details">
+                          View Details <i class="bi bi-arrow-right"></i>
+                      </a>
+                      <a href="/job-portal/company.php?id=<?php echo (int)$jobs['user_id']; ?>" class="btn-view-details">View Company</a>
+                  </div>
+                </div>
               </div>
-            </div>         
+            </div>
+          <?php } ?>
+        <?php } else { ?>
+          <div class="col-12 text-center py-5">
+            <p style="font-size:15px;color:var(--default-color);">No jobs found matching your search or filter. Try a different keyword or category.</p>
           </div>
         <?php } ?>
-      </div><!-- /Row -->
-
-      <!-- Load More -->
-      <div class="load-more-wrap" data-aos="fade-up" data-aos-delay="100">
-        <a href="#" class="btn-load-more">
-          <i class="bi bi-plus-circle"></i> Load More Jobs
-        </a>
-        <p style="margin-top:14px;font-size:13px;color:#94a3b8;font-family:var(--default-font);">
-          Showing 12 of 1,248 results
-        </p>
       </div>
+
+      <?php if ($showCount < $totalJobs) { ?>
+        <div class="load-more-wrap" data-aos="fade-up" data-aos-delay="100">
+          <a href="?show=<?php echo $showCount + 6; ?><?php echo isset($filter) ? '&filter=' . $filter . '&submit-filter=1' : ''; ?><?php echo isset($search) && isset($_GET['search']) ? '&search=' . urlencode($_GET['search']) . '&submit-search=1' : ''; ?>#jobs-section" class="btn-load-more">
+            <i class="bi bi-plus-circle"></i> Load More Jobs
+          </a>
+        </div>
+      <?php } ?>
 
     </div>
   </section>
-  
-  </main>
+
+</main>
 <?php
 include "./includes/footer.php";
 ?>
-

@@ -1,67 +1,101 @@
 <?php session_start();
 include("../includes/config.php");
+require_once("../includes/csrf.php");
+
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
     header("Location: ../login.php");
     exit();
 }
+
+// Verify CSRF Token on POST Request
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $token = $_POST['csrf_token'] ?? '';
+    if (!verifyCsrfToken($token)) {
+        die("Invalid CSRF Token.");
+    }
+}
+
 $message = "";
-$messageType = "success"; // Add Category Query
+$messageType = "success"; 
+
+// Add Category Query (Prepared Statement)
 if (isset($_POST['add_category'])) {
     $name = trim($_POST['category_name']);
     if ($name == "") {
         $message = "Category name cannot be empty";
         $messageType = "error";
     } else {
-        $checkquery = "SELECT * FROM categories WHERE name='$name'";
-        $checkqueryresult = mysqli_query($conn, $checkquery);
+        $checkquery = "SELECT * FROM categories WHERE name = ?";
+        $checkqueryresult = mysqli_execute_query($conn, $checkquery, [$name]);
         if (mysqli_num_rows($checkqueryresult) > 0) {
             $message = "Category already exists";
             $messageType = "error";
         } else {
-            $insertquery = "INSERT INTO categories(name) VALUES('$name')";
-            $insertqueryresult = mysqli_query($conn, $insertquery);
+            $insertquery = "INSERT INTO categories(name) VALUES(?)";
+            $insertqueryresult = mysqli_execute_query($conn, $insertquery, [$name]);
             if ($insertqueryresult) {
                 $message = "Category added successfully";
                 header("Location: ./manage-categories.php");
+                exit();
             }
         }
     }
-} // Edit Category Query
+} 
+
+// Edit Category Query (Prepared Statement)
 if (isset($_POST['edit_category'])) {
-    $id = $_POST['category_id'];
+    $id = (int)$_POST['category_id'];
     $name = trim($_POST['category_name_edit']);
     if ($name == "") {
         $message = "Category name cannot be empty";
         $messageType = "error";
     } else {
-        $updatequery = "UPDATE categories SET name='$name' WHERE id='$id'";
-        $updatequeryresult = mysqli_query($conn, $updatequery);
+        $updatequery = "UPDATE categories SET name = ? WHERE id = ?";
+        $updatequeryresult = mysqli_execute_query($conn, $updatequery, [$name, $id]);
         if ($updatequeryresult) {
             $message = "Category updated successfully";
             header("Location: ./manage-categories.php");
+            exit();
         }
     }
-} // Delete Category Query
+} 
+
+// Delete Category Query (Prepared Statement)
 if (isset($_POST['delete_category_id'])) {
-    $id = $_POST['delete_category_id'];
-    $checkjobsquery = "SELECT COUNT(*) AS total FROM jobs WHERE category_id='$id'";
-    $checkjobsqueryresult = mysqli_query($conn, $checkjobsquery);
+    $id = (int)$_POST['delete_category_id'];
+    $checkjobsquery = "SELECT COUNT(*) AS total FROM jobs WHERE category_id = ?";
+    $checkjobsqueryresult = mysqli_execute_query($conn, $checkjobsquery, [$id]);
     $jobs = mysqli_fetch_assoc($checkjobsqueryresult);
     $jobCount = $jobs['total'];
     if ($jobCount > 0) {
         $message = "This category cannot be deleted because $jobCount jobs are linked with it";
         $messageType = "error";
     } else {
-        $deletequery = "DELETE FROM categories WHERE id='$id'";
-        $deletequeryresult = mysqli_query($conn, $deletequery);
+        $deletequery = "DELETE FROM categories WHERE id = ?";
+        $deletequeryresult = mysqli_execute_query($conn, $deletequery, [$id]);
         if ($deletequeryresult) {
             $message = "Category deleted successfully";
             header("Location: ./manage-categories.php");
+            exit();
         }
     }
-} // Categories Query
-$categoriesquery = "SELECT categories.*, (SELECT COUNT(*) FROM jobs WHERE jobs.category_id = categories.id) AS job_count FROM categories ORDER BY categories.name ASC";
-$categories = mysqli_query($conn, $categoriesquery); ?>
+}
+
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+if ($page < 1) { 
+    $page = 1; 
+}
+$perPage = 10;
+$offset = ($page - 1) * $perPage;
+
+$countResult = mysqli_query($conn, "SELECT COUNT(*) as total FROM categories");
+$totalCategories = mysqli_fetch_assoc($countResult)['total'];
+$totalPages = ceil($totalCategories / $perPage);
+
+// Query 2: Fetch Categories with Pagination
+$categoriesquery = "SELECT categories.*, (SELECT COUNT(*) FROM jobs WHERE jobs.category_id = categories.id) AS job_count FROM categories ORDER BY categories.name ASC LIMIT ? OFFSET ?";
+$categories = mysqli_execute_query($conn, $categoriesquery, [$perPage, $offset]);
+?>
 
 <style>
     .admin-categories {
@@ -260,45 +294,116 @@ $categories = mysqli_query($conn, $categoriesquery); ?>
         color: var(--default-color);
     }
 
+    .pagination-wrap {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        margin-top: 24px;
+        flex-wrap: wrap;
+    }
+
+    .page-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 38px;
+        height: 38px;
+        padding: 0 6px;
+        border-radius: 8px;
+        background: var(--surface-color);
+        border: 1px solid rgba(0,0,0,0.08);
+        color: var(--default-color);
+        font-size: 14px;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .page-link:hover {
+        border-color: var(--accent-color);
+        color: var(--accent-color);
+        text-decoration: none;
+    }
+
+    .page-link.active {
+        background: var(--accent-color);
+        color: var(--contrast-color);
+        border-color: var(--accent-color);
+    }
+
     @media (max-width: 900px) {
         .categories-layout {
             grid-template-columns: 1fr;
         }
     }
 </style>
+
 <?php include "../includes/header.php" ?>
 <section class="admin-categories">
     <h1>Manage Categories</h1>
-    <p class="subtitle"> Add, edit and delete job categories </p> <?php if ($message != "") { ?> <div class="alert-msg <?php echo $messageType; ?>"> <?php echo $message; ?> </div> <?php } ?> <div class="categories-layout">
+    <p class="subtitle"> Add, edit and delete job categories </p>
+    <?php if ($message != "") { ?> <div class="alert-msg <?php echo $messageType; ?>"> <?php echo htmlspecialchars($message); ?> </div> <?php } ?>
+    <div class="categories-layout">
         <div class="add-category-panel">
             <h2>Add New Category</h2>
-            <form method="POST"> <label> Category Name </label> <input type="text" name="category_name" placeholder="e.g. UI/UX Design" required> <button type="submit" name="add_category" class="btn-accent"> Add Category </button> </form>
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
+                <label> Category Name </label>
+                <input type="text" name="category_name" placeholder="e.g. UI/UX Design" required>
+                <button type="submit" name="add_category" class="btn-accent"> Add Category </button>
+            </form>
         </div>
-        <div class="categories-table-wrap">
-            <table class="categories-table">
-                <thead>
-                    <tr>
-                        <th>Category</th>
-                        <th>Jobs Posted</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody> <?php if (mysqli_num_rows($categories) > 0) {
-                            while ($cat = mysqli_fetch_assoc($categories)) { ?> <tr>
-                                <td>
-                                    <form class="edit-row-form" method="POST"> <input type="hidden" name="category_id" value="<?php echo $cat['id']; ?>"> <input type="text" name="category_name_edit" value="<?php echo $cat['name']; ?>"> <button type="submit" name="edit_category" class="btn-icon btn-edit"> <i class="bi bi-check2"></i> Save </button> </form>
-                                </td>
-                                <td> <span class="job-count-pill"> <?php echo $cat['job_count']; ?> jobs </span> </td>
-                                <td>
-                                    <div class="action-btns">
-                                        <form method="POST" onsubmit="return confirm('Do you want to delete this category?')"> <input type="hidden" name="delete_category_id" value="<?php echo $cat['id']; ?>"> <button type="submit" class="btn-icon btn-delete"> <i class="bi bi-trash"></i> Delete </button> </form>
-                                    </div>
-                                </td>
-                            </tr> <?php }
-                            } else { ?> <tr>
-                            <td colspan="3" class="no-data"> No categories found </td>
-                        </tr> <?php } ?> </tbody>
-            </table>
+        <div>
+            <div class="categories-table-wrap">
+                <table class="categories-table">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Jobs Posted</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (mysqli_num_rows($categories) > 0) {
+                            while ($cat = mysqli_fetch_assoc($categories)) { ?>
+                                <tr>
+                                    <td>
+                                        <form class="edit-row-form" method="POST">
+                                            <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
+                                            <input type="hidden" name="category_id" value="<?php echo htmlspecialchars($cat['id']); ?>">
+                                            <input type="text" name="category_name_edit" value="<?php echo htmlspecialchars($cat['name']); ?>">
+                                            <button type="submit" name="edit_category" class="btn-icon btn-edit"> <i class="bi bi-check2"></i> Save </button>
+                                        </form>
+                                    </td>
+                                    <td> <span class="job-count-pill"> <?php echo (int)$cat['job_count']; ?> jobs </span> </td>
+                                    <td>
+                                        <div class="action-btns">
+                                            <form method="POST" onsubmit="return confirm('Do you want to delete this category?')">
+                                                <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
+                                                <input type="hidden" name="delete_category_id" value="<?php echo htmlspecialchars($cat['id']); ?>">
+                                                <button type="submit" class="btn-icon btn-delete"> <i class="bi bi-trash"></i> Delete </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <?php }
+                        } else { ?>
+                            <tr>
+                                <td colspan="3" class="no-data"> No categories found </td>
+                            </tr>
+                        <?php } ?>
+                    </tbody>
+                </table>
+            </div>
+
+            <?php if ($totalPages > 1) { ?>
+                <div class="pagination-wrap">
+                    <?php for ($i = 1; $i <= $totalPages; $i++) { ?>
+                        <a href="?page=<?php echo $i; ?>" class="page-link <?php echo ($i == $page) ? 'active' : ''; ?>">
+                            <?php echo $i; ?>
+                        </a>
+                    <?php } ?>
+                </div>
+            <?php } ?>
         </div>
     </div>
 </section>

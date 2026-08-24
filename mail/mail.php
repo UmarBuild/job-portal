@@ -1,6 +1,5 @@
 <?php
-include "./includes/config.php";
-require "./vendor/autoload.php";
+require __DIR__ . "/../vendor/autoload.php";
 
 use PHPMailer\PHPMailer\PHPMailer; // namespace\class;
 use PHPMailer\PHPMailer\Exception;
@@ -26,7 +25,9 @@ function sendMail($to, $subject, $body)
     $mail->Subject = $subject;
     $mail->Body = $body;
     $mail->send();
+    return true;
   } catch (Exception $e) {
-    echo $e->getMessage();
+    // echo $e->getMessage();  
+    return false;
   };
-}
+};

@@ -1,26 +1,66 @@
 <?php
 session_start();
 include("includes/config.php");
-$email = $_GET["email"];
-if (isset($_POST['reset_password'])) {
-    $new_password = $_POST['new_password'];
-$password = password_hash($new_password, PASSWORD_DEFAULT);
-    $query = "update users set password = '$password' WHERE email='$email' ";
+$error = [];
+$tokenValid = false;
+$user = null;
+if (isset($_GET["email"]) && !empty($_GET["email"])) {
+    $raw_mail = $_GET["email"];
+} elseif (isset($_POST["email"]) && !empty($_POST["email"])) {
+    $raw_mail = $_POST["email"];
+} else {
+    $raw_mail = "";
+    $error[] = "Sysytem Could n't Find Email";
+}
+$email = mysqli_real_escape_string($conn, $raw_mail);
+$token = mysqli_real_escape_string($conn, isset($_GET["token"]) ? $_GET["token"] : (isset($_POST["token"]) ? $_POST["token"] : "" ));
 
-    $result = mysqli_query($conn, $query);
-
-    if ($result) {
-        header("Location: login.php?msg='password_reset'");
+if (!empty($email) && !empty($token)) {
+    $query = "SELECT * FROM users WHERE email=? and reset_token=?";
+    $result = mysqli_execute_query($conn, $query,[$email,$token]);
+    if (mysqli_num_rows($result) > 0) {
+        $user = mysqli_fetch_assoc($result);
+        if ($user["reset_token_expiry"] <= date("Y-m-d H:i:s")) {
+            $error[] = "Password Reset Link Expired";
+        } else {
+            $tokenValid = true;
+        };
     } else {
-        echo "Password Reset Failed";
+        $error[] = "Password Reset Failed";
     };
+}
+
+
+if (isset($_POST['reset_password']) && $tokenValid == true) {
+    $new_password = mysqli_real_escape_string($conn, $_POST['new_password']);
+    $confirm_password = mysqli_real_escape_string($conn, $_POST['confirm_password']);
+    if($new_password != $confirm_password){
+        $error[] = "Password does not match";
+    }else{
+        $password = password_hash($new_password, PASSWORD_DEFAULT);
+        $query = "update users set password = ? WHERE email=? and reset_token=?";
+        $result = mysqli_execute_query($conn, $query,[$password,$email,$token]);
+        if ($result) {
+            $query = "update users set reset_token = null, reset_token_expiry = null WHERE email=?";   
+            $result = mysqli_execute_query($conn, $query,[$email]);
+            if ($result) {
+                $_SESSION["status"] = "Password changed successfully";
+                header("Location: login.php?msg='password_reset'");
+                exit();
+            } else {
+                $error[] = "Invalid Email";
+            };
+        };
+    }
 };
+
 include("includes/header.php");
 ?>
+
 <style>
     body {
         min-height: 100vh;
-        overflow: hidden;
+        /* overflow: hidden; */
         background-color: var(--background-color);
         font-family: var(--default-font);
         margin: 0;
@@ -130,29 +170,54 @@ include("includes/header.php");
     }
 
     @keyframes slideUp {
-        from { opacity: 0; transform: translateY(15px); }
-        to { opacity: 1; transform: translateY(0); }
+        from {
+            opacity: 0;
+            transform: translateY(15px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 </style>
+
 <div class="d-flex justify-content-center align-items-center m-5">
     <div class="reset-password-card">
         <div class="icon-box">
             <i class="bi bi-key-fill"></i>
         </div>
-        
+
         <h2>Create New Password</h2>
         <p>Please enter a strong, secure new password to regain access to your dashboard account.</p>
-    
-        <form method="POST">
-            <div class="form-group">
-                <i class="bi bi-lock-fill"></i>
-                <input type="password" name="new_password" placeholder="New Password" required>
+        <?php if (!empty($error)) { ?>
+            <div class="alert alert-danger">
+                <?php foreach ($error as $e) {
+                    echo $e . "<br>";
+                } ?>
             </div>
-    
-            <button type="submit" name="reset_password" class="btn-reset">
-                Reset Password <i class="bi bi-check-circle-fill ms-1 align-middle fs-6"></i>
-            </button>
-        </form>
-    </div>   
+        <?php }   ?>
+        <?php if ($user["reset_token_expiry"] > date("Y-m-d H:i:s") && $tokenValid == true) { ?>
+            <form method="POST">
+                <input type="hidden" name="email" value="<?php echo htmlspecialchars($email); ?>">
+                <input type="hidden" name="token" value="<?php echo htmlspecialchars($token); ?>">
+                <div class="form-group">
+                    <i class="bi bi-lock-fill"></i>
+                    <input type="password" name="new_password" placeholder="New Password" required>
+                </div>
+                <div class="form-group">
+                    <i class="bi bi-lock-fill"></i>
+                    <input type="password" name="confirm_password" placeholder="Confirm Password Password" required>
+                </div>
+
+                <button type="submit" name="reset_password" class="btn-reset">
+                    Reset Password <i class="bi bi-check-circle-fill ms-1 align-middle fs-6"></i>
+                </button>
+            </form>
+        <?php } else { ?>
+            <div class="alert alert-warning">This password reset link is invalid or has expired.</div>
+        <?php } ?>
+    </div>
 </div>
+
 <?php include "includes/footer.php"; ?>
