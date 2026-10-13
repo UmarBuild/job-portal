@@ -45,7 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
   } elseif (!$datetime || strtotime($datetime) === false) {
     $error = "Please select a valid date and time.";
   } elseif (strtotime($datetime) < time()) {
-    $error = "Interview time past mein nahi ho sakta. Future ka time select karein.";
+    $error = "You can not select past date/time please select a future time";
   } elseif ($type !== 'phone' && $location === '') {
     $error = "Please enter a meeting link or office address.";
   }
