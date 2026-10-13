@@ -1201,10 +1201,10 @@ if (isset($_GET["submit-filter"]) && !empty($_GET["filter"]) || isset($_GET["sub
                       <div class="job-salary"><?php echo htmlspecialchars($jobs['salary']); ?> <span>/ year</span></div>
                   </div>
                   <div class="job-footer-actions">
-                      <a href="/job-portal/job-details.php?id=<?php echo (int)$jobs['id']; ?>" class="btn-view-details">
+                      <a href="<?php echo BASE_PATH; ?>/job-details.php?id=<?php echo (int)$jobs['id']; ?>" class="btn-view-details">
                           View Details <i class="bi bi-arrow-right"></i>
                       </a>
-                      <a href="/job-portal/company.php?id=<?php echo (int)$jobs['user_id']; ?>" class="btn-view-details">View Company</a>
+                      <a href="<?php echo BASE_PATH; ?>/company.php?id=<?php echo (int)$jobs['user_id']; ?>" class="btn-view-details">View Company</a>
                   </div>
                 </div>
               </div>

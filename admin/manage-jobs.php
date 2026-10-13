@@ -54,7 +54,7 @@ if (isset($_POST['approve_job_id'])) {
             $info['employer_id'],
             'job_approved',
             "Your job \"{$info['title']}\" has been approved and is now live",
-            "/job-portal/employer/add-manage-jobs.php"
+            BASE_PATH . "/employer/add-manage-jobs.php"
         );
 
         sendMail(
@@ -82,7 +82,7 @@ if (isset($_POST['reject_job_id'])) {
             $info['employer_id'],
             'job_rejected',
             "Your job \"{$info['title']}\" was not approved",
-            "/job-portal/employer/add-manage-jobs.php"
+            BASE_PATH . "/employer/add-manage-jobs.php"
         );
 
         sendMail(

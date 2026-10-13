@@ -183,7 +183,7 @@
   <div class="container footer-top">
     <div class="row gy-4">
       <div class="col-lg-3 col-md-6 footer-info">
-        <a href="/job-portal/index.php" class="logo">
+        <a href="<?php echo BASE_PATH; ?>/index.php" class="logo">
           <span class="sitename">Hire<span>Hub</span></span>
         </a>
         <p>A trusted platform connecting talented job seekers with the right employers — post jobs, find jobs, and grow your career or your team, all in one place.</p>
@@ -199,10 +199,10 @@
       <div class="col-lg-2 col-md-6 footer-links">
         <h4>Applicant</h4>
         <ul>
-          <li><a href="/job-portal/jobs.php">Browse Jobs</a></li>
-          <!-- <li><a href="/job-portal/register.php">Create Account</a></li> -->
-          <li><a href="/job-portal/applicant/applied-jobs.php">Applied Jobs</a></li>
-          <li><a href="/job-portal/applicant/saved-jobs.php">Saved Jobs</a></li>
+          <li><a href="<?php echo BASE_PATH; ?>/jobs.php">Browse Jobs</a></li>
+          <!-- <li><a href="<?php echo BASE_PATH; ?>/register.php">Create Account</a></li> -->
+          <li><a href="<?php echo BASE_PATH; ?>/applicant/applied-jobs.php">Applied Jobs</a></li>
+          <li><a href="<?php echo BASE_PATH; ?>/applicant/saved-jobs.php">Saved Jobs</a></li>
         </ul>
       </div>
  <?php } ?>
@@ -210,18 +210,18 @@
       <div class="col-lg-2 col-md-6 footer-links">
         <h4>Employer</h4>
         <ul>
-          <li><a href="/job-portal/employer/add-manage-jobs.php">Post a Job</a></li>
-          <li><a href="/job-portal/employer/employerDashboard.php">Employer Dashboard</a></li>
-          <li><a href="/job-portal/employer/employer-applications.php">Manage Applications</a></li>
+          <li><a href="<?php echo BASE_PATH; ?>/employer/add-manage-jobs.php">Post a Job</a></li>
+          <li><a href="<?php echo BASE_PATH; ?>/employer/employerDashboard.php">Employer Dashboard</a></li>
+          <li><a href="<?php echo BASE_PATH; ?>/employer/employer-applications.php">Manage Applications</a></li>
         </ul>
       </div>
  <?php } ?>
       <div class="col-lg-2 col-md-6 footer-links">
         <h4>Company</h4>
         <ul>
-          <li><a href="/job-portal/index.php">Home</a></li>
-          <li><a href="/job-portal/about.php">About Us</a></li>
-          <li><a href="/job-portal/contact.php">Contact Us</a></li>
+          <li><a href="<?php echo BASE_PATH; ?>/index.php">Home</a></li>
+          <li><a href="<?php echo BASE_PATH; ?>/about.php">About Us</a></li>
+          <li><a href="<?php echo BASE_PATH; ?>/contact.php">Contact Us</a></li>
         </ul>
       </div>
  
@@ -258,16 +258,16 @@
 <!-- Saare Scripts Footer ke BAHAR aur body close hone se PEHLE aane chahiye -->
 <!-- Bootstrap 5 use ho raha hai (data-bs-toggle) — isliye sirf ek Bootstrap bundle,
      jQuery aur external Popper hata diye gaye hain kyunki Bootstrap 5 ko in ki zaroorat nahi -->
-<script src="/job-portal/assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
-<script src="/job-portal/assets/vendor/aos/aos.js"></script>
-<script src="/job-portal/assets/vendor/glightbox/js/glightbox.min.js"></script>
-<script src="/job-portal/assets/vendor/imagesloaded/imagesloaded.pkgd.min.js"></script>
-<script src="/job-portal/assets/vendor/isotope-layout/isotope.pkgd.min.js"></script>
-<script src="/job-portal/assets/vendor/purecounter/purecounter_vanilla.js"></script>
-<script src="/job-portal/assets/vendor/swiper/swiper-bundle.min.js"></script>
+<script src="<?php echo BASE_PATH; ?>/assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script src="<?php echo BASE_PATH; ?>/assets/vendor/aos/aos.js"></script>
+<script src="<?php echo BASE_PATH; ?>/assets/vendor/glightbox/js/glightbox.min.js"></script>
+<script src="<?php echo BASE_PATH; ?>/assets/vendor/imagesloaded/imagesloaded.pkgd.min.js"></script>
+<script src="<?php echo BASE_PATH; ?>/assets/vendor/isotope-layout/isotope.pkgd.min.js"></script>
+<script src="<?php echo BASE_PATH; ?>/assets/vendor/purecounter/purecounter_vanilla.js"></script>
+<script src="<?php echo BASE_PATH; ?>/assets/vendor/swiper/swiper-bundle.min.js"></script>
 
 <!-- Main JS File (Isi file me mobile toggle ka actual code hota hai) -->
-<script src="/job-portal/assets/js/main.js"></script>
+<script src="<?php echo BASE_PATH; ?>/assets/js/main.js"></script>
 
 </body>
 

@@ -626,7 +626,7 @@ if (isset($_GET["submit-filter"]) && !empty($_GET["filter"])) {
 
                   <div class="card-actions">
                     <?php if ($jobs['job_status'] === 'open') { ?>
-                      <a href="/job-portal/job-details.php?id=<?php echo (int)$jobs['job_id']; ?>" class="btn-view-details">
+                      <a href="<?php echo BASE_PATH; ?>/job-details.php?id=<?php echo (int)$jobs['job_id']; ?>" class="btn-view-details">
                         View Job <i class="bi bi-arrow-right"></i>
                       </a>
                     <?php } else { ?>

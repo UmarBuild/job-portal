@@ -15,7 +15,7 @@ if (isset($_POST['check_email'])) {
         $query = "update users set reset_token = ?, reset_token_expiry = ? where email = ?";
         $result = mysqli_execute_query($conn, $query,[$token,$expiry,$email]);
         if ($result) {
-            $url = "http://localhost/job-portal/reset-password.php?email=$email&token=$token";
+            $url = APP_URL . BASE_PATH . "/reset-password.php?email=" . urlencode($email) . "&token=" . $token;
             $to = $email;
             $subject = "Password Reset Link";
             $message = "Click on the link to reset your password: $url";

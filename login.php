@@ -33,13 +33,13 @@ if ($email === false) {
         $_SESSION['role'] = $user['role'];
         $lowerrole = strtolower($role);
         if ($lowerrole == "employer") {
-          header("Location: ../job-portal/employer/employerDashboard.php");
+          header("Location: employer/employerDashboard.php");
           exit();
         } elseif ($lowerrole == "applicant") {
-          header("Location: ../job-portal/applicant/applicantDashboard.php");
+          header("Location: applicant/applicantDashboard.php");
           exit();
         } elseif ($lowerrole == "admin") {
-          header("Location: ../job-portal/admin/Dashboard.php");
+          header("Location: admin/dashboard.php");
           exit();
         }
       } else {

@@ -1,7 +1,7 @@
 <?php
 
 session_start();
-include "../../job-portal/includes/config.php";
+include "../includes/config.php";
 
 if (!isset($_SESSION["user_id"])) {
   header("Location: ../login.php");

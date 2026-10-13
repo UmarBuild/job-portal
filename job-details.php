@@ -51,7 +51,7 @@ if (isset($_POST['apply-job'])) {
                 $jobs['user_id'], 
                 'new_applicant',
                 "New applicant for \"{$jobs['title']}\"",
-                "/job-portal/employer/employer-applications.php"
+                BASE_PATH . "/employer/employer-applications.php"
             );
 
             sendMail(
@@ -825,7 +825,7 @@ white-space: nowrap;
               <i class="bi bi-buildings"></i> <?php echo htmlspecialchars($jobs['company']); ?> 
             </div>
             <div>
-              <a href="/job-portal/company.php?id=<?php echo (int)$jobs['user_id']; ?>" class="btn-view-company-inline">View Company</a>
+              <a href="<?php echo BASE_PATH; ?>/company.php?id=<?php echo (int)$jobs['user_id']; ?>" class="btn-view-company-inline">View Company</a>
             </div>
           </div>
 

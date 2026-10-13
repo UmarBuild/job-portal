@@ -1,6 +1,6 @@
 <?php
     session_start();
-    include "../../job-portal/includes/config.php";
+    include "../includes/config.php";
 if (!isset($_SESSION["user_id"])) {
   header("Location: ../login.php");
   exit();
@@ -47,7 +47,7 @@ if (isset($_POST['post_job'])) {
   }
 }
 
-include "../../job-portal/includes/header.php";
+include "../includes/header.php";
 ?>           
       <head>         
         <style>
@@ -344,6 +344,6 @@ include "../../job-portal/includes/header.php";
 </body>    
       
   <?php      
-    include "../../job-portal/includes/footer.php";   
+    include "../includes/footer.php";   
     ?>   
       

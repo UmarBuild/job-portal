@@ -21,6 +21,7 @@ function calculateSkillMatch($applicantSkills, $jobSkills) {
 
 include "../includes/config.php";
 require_once "../includes/notify.php";
+require_once "../includes/csrf.php";
 require_once "../mail/mail.php";
 
 if (!isset($_SESSION["user_id"])) {
@@ -34,150 +35,89 @@ if ($_SESSION["role"] != "employer" && $_SESSION["role"] != "admin") {
 
 $userid = $_SESSION["user_id"];
 
-if (isset($_POST["visibility"])) {
-  $app_id = (int)$_POST["application_id"];
-  $hideapplicationquery = "update applications set visibility = 0 where id = ?";
-  $hideapplicationqueryresult = mysqli_execute_query($conn, $hideapplicationquery, [$app_id]);
-  if ($hideapplicationqueryresult) {
-    header("Location: ./employer-applications.php");
-    exit();
+// ---- Security helpers ----
+function getOwnedApplication($conn, $appId, $userid, $role) {
+  // Employer sirf apni jobs ki applications dekh sakta hai, admin sab
+  $sql = "select applications.id, applications.status, applications.applicant_id, users.email, users.fullname, jobs.title
+          from applications
+          inner join users on applications.applicant_id = users.id
+          inner join jobs on applications.job_id = jobs.id
+          where applications.id = ?";
+  $params = [$appId];
+  if ($role != "admin") {
+    $sql .= " and jobs.user_id = ?";
+    $params[] = $userid;
   }
-};
-
-if (isset($_POST["status-reject"])) {
-  $id = (int)$_POST["id"];
-  $query2 = "update applications set status = 'rejected' where id = ?";
-  $result2 = mysqli_execute_query($conn, $query2, [$id]);
-  if (mysqli_affected_rows($conn) >= 1) {
-
-    $infoQuery = "select applications.applicant_id, users.email, users.fullname, jobs.title
-                    from applications
-                    inner join users on applications.applicant_id = users.id
-                    inner join jobs on applications.job_id = jobs.id
-                    where applications.id = ?";
-    $infoResult = mysqli_execute_query($conn, $infoQuery, [$id]);
-    $info = mysqli_fetch_assoc($infoResult);
-
-    sendNotification(
-      $conn,
-      $info['applicant_id'],
-      'application_status',
-      "Your application for \"{$info['title']}\" was not selected this time.",
-      "/job-portal/applicant/applied-jobs.php"
-    );
-
-    sendMail(
-      $info['email'],
-      "Application Update",
-      "<p>Hi {$info['fullname']}, unfortunately your application for <b>{$info['title']}</b> was not selected this time.</p>"
-    );
-
-    header("Location: ./employer-applications.php");
-    exit();
-  } else {
-    echo "Job rejecting failed" . mysqli_error($conn);
-  }
+  $res = mysqli_execute_query($conn, $sql, $params);
+  return $res ? mysqli_fetch_assoc($res) : null;
 }
 
-if (isset($_POST["status-accept"])) {
-  $id = (int)$_POST["id"];
-  $query3 = "update applications set status = 'accepted' where id = ?";
-  $result3 = mysqli_execute_query($conn, $query3, [$id]);
-  if (mysqli_affected_rows($conn) >= 1) {
-
-    $infoQuery = "select applications.applicant_id, users.email, users.fullname, jobs.title
-                    from applications
-                    inner join users on applications.applicant_id = users.id
-                    inner join jobs on applications.job_id = jobs.id
-                    where applications.id = ?";
-    $infoResult = mysqli_execute_query($conn, $infoQuery, [$id]);
-    $info = mysqli_fetch_assoc($infoResult);
-
-    sendNotification(
-      $conn,
-      $info['applicant_id'],
-      'application_status',
-      "Great news! Your application for \"{$info['title']}\" was accepted.",
-      "/job-portal/applicant/applied-jobs.php"
-    );
-
-    sendMail(
-      $info['email'],
-      "Application Accepted ",
-      "<p>Hi {$info['fullname']}, congratulations! Your application for <b>{$info['title']}</b> was accepted. The employer will contact you soon regarding next steps.</p>"
-    );
-
-    header("Location: ./employer-applications.php");
-    exit();
-  } else {
-    echo "Job accepting failed" . mysqli_error($conn);
-  }
+function notifyApplicant($conn, $info, $notifMsg, $mailSubject, $mailBody) {
+  sendNotification($conn, $info['applicant_id'], 'application_status', $notifMsg, BASE_PATH . "/applicant/applied-jobs.php");
+  sendMail($info['email'], $mailSubject, $mailBody);
 }
 
-if (isset($_POST["status-hire"])) {
-  $id = (int)$_POST["id"];
-  $query4 = "update applications set status = 'hired' where id = ?";
-  $result4 = mysqli_execute_query($conn, $query4, [$id]);
-
-  mysqli_execute_query($conn, "update interviews set status = 'completed' where application_id = ?", [$id]);
-
-  if (mysqli_affected_rows($conn) >= 1) {
-    $infoQuery = "select applications.applicant_id, users.email, users.fullname, jobs.title
-                    from applications
-                    inner join users on applications.applicant_id = users.id
-                    inner join jobs on applications.job_id = jobs.id
-                    where applications.id = ?";
-    $infoResult = mysqli_execute_query($conn, $infoQuery, [$id]);
-    $info = mysqli_fetch_assoc($infoResult);
-
-    sendNotification(
-      $conn,
-      $info['applicant_id'],
-      'application_status',
-      "🎉 Congratulations! You've been hired for \"{$info['title']}\"",
-      "/job-portal/applicant/applied-jobs.php"
-    );
-
-    sendMail(
-      $info['email'],
-      "You're Hired! 🎉",
-      "<p>Hi {$info['fullname']}, congratulations! After the interview, you have been selected for <b>{$info['title']}</b>. The employer will reach out with next steps.</p>"
-    );
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+  if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+    http_response_code(403);
+    die("Invalid request (CSRF). Page refresh karke dobara try karein.");
   }
-  header("Location: ./employer-applications.php");
-  exit();
-}
 
-if (isset($_POST["status-not-selected"])) {
-  $id = (int)$_POST["id"];
-  $query5 = "update applications set status = 'rejected' where id = ?";
-  $result5 = mysqli_execute_query($conn, $query5, [$id]);
+  $role = $_SESSION["role"];
+  $id = (int)($_POST["id"] ?? $_POST["application_id"] ?? 0);
+  $info = getOwnedApplication($conn, $id, $userid, $role);
 
-  mysqli_execute_query($conn, "update interviews set status = 'completed' where application_id = ?", [$id]);
-
-  if (mysqli_affected_rows($conn) >= 1) {
-    $infoQuery = "select applications.applicant_id, users.email, users.fullname, jobs.title
-                    from applications
-                    inner join users on applications.applicant_id = users.id
-                    inner join jobs on applications.job_id = jobs.id
-                    where applications.id = ?";
-    $infoResult = mysqli_execute_query($conn, $infoQuery, [$id]);
-    $info = mysqli_fetch_assoc($infoResult);
-
-    sendNotification(
-      $conn,
-      $info['applicant_id'],
-      'application_status',
-      "Update on your application for \"{$info['title']}\"",
-      "/job-portal/applicant/applied-jobs.php"
-    );
-
-    sendMail(
-      $info['email'],
-      "Application Update",
-      "<p>Hi {$info['fullname']}, thank you for interviewing for <b>{$info['title']}</b>. After careful consideration, we've decided to move forward with another candidate. We appreciate your time and wish you the best.</p>"
-    );
+  if (!$info) {
+    die("Application not found or you don't have permission to access it.");
   }
+
+  $safeName = htmlspecialchars($info['fullname']);
+  $safeTitle = htmlspecialchars($info['title']);
+  $current = $info['status'];
+
+  if (isset($_POST["visibility"])) {
+    mysqli_execute_query($conn, "update applications set visibility = 0 where id = ?", [$id]);
+
+  } elseif (isset($_POST["status-accept"])) {
+    if ($current == 'pending') {
+      mysqli_execute_query($conn, "update applications set status = 'accepted' where id = ?", [$id]);
+      notifyApplicant($conn, $info,
+        "Great news! Your application for \"{$info['title']}\" was accepted.",
+        "Application Accepted",
+        "<p>Hi {$safeName}, congratulations! Your application for <b>{$safeTitle}</b> was accepted. The employer will contact you soon regarding next steps.</p>");
+    }
+
+  } elseif (isset($_POST["status-reject"])) {
+    if ($current == 'pending' || $current == 'accepted') {
+      mysqli_execute_query($conn, "update applications set status = 'rejected' where id = ?", [$id]);
+      notifyApplicant($conn, $info,
+        "Your application for \"{$info['title']}\" was not selected this time.",
+        "Application Update",
+        "<p>Hi {$safeName}, unfortunately your application for <b>{$safeTitle}</b> was not selected this time.</p>");
+    }
+
+  } elseif (isset($_POST["status-hire"])) {
+    // Sirf accepted applicant (jiska interview ho chuka ho) hire ho sakta hai
+    if ($current == 'accepted') {
+      mysqli_execute_query($conn, "update applications set status = 'hired' where id = ?", [$id]);
+      mysqli_execute_query($conn, "update interviews set status = 'completed' where application_id = ?", [$id]);
+      notifyApplicant($conn, $info,
+        "🎉 Congratulations! You've been hired for \"{$info['title']}\"",
+        "You're Hired! 🎉",
+        "<p>Hi {$safeName}, congratulations! After the interview, you have been selected for <b>{$safeTitle}</b>. The employer will reach out with next steps.</p>");
+    }
+
+  } elseif (isset($_POST["status-not-selected"])) {
+    if ($current == 'accepted') {
+      mysqli_execute_query($conn, "update applications set status = 'rejected' where id = ?", [$id]);
+      mysqli_execute_query($conn, "update interviews set status = 'completed' where application_id = ?", [$id]);
+      notifyApplicant($conn, $info,
+        "Update on your application for \"{$info['title']}\"",
+        "Application Update",
+        "<p>Hi {$safeName}, thank you for interviewing for <b>{$safeTitle}</b>. After careful consideration, we've decided to move forward with another candidate. We appreciate your time and wish you the best.</p>");
+    }
+  }
+
   header("Location: ./employer-applications.php");
   exit();
 }
@@ -739,6 +679,7 @@ include "../includes/header.php";
             <div class="app-actions">
               <?php if ($row['status'] == 'pending') { ?>
                 <form method="POST">
+<input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
                   <input type="hidden" name="id" value="<?php echo (int)$row['id']; ?>">
                   <button type="submit" class="btn-accept" name="status-accept">Accept</button>
                   <button type="submit" class="btn-reject" name="status-reject">Reject</button>
@@ -766,12 +707,14 @@ include "../includes/header.php";
 
       <div style="display:flex; gap:8px;">
         <form method="POST" style="flex:1;">
+<input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
           <input type="hidden" name="id" value="<?php echo (int)$row['id']; ?>">
           <button type="submit" name="status-hire" class="btn-accept" style="width:100%;">
             <i class="bi bi-check-circle"></i> Mark Hired
           </button>
         </form>
         <form method="POST" style="flex:1;">
+<input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
           <input type="hidden" name="id" value="<?php echo (int)$row['id']; ?>">
           <button type="submit" name="status-not-selected" class="btn-reject" style="width:100%;">
             Not Selected
@@ -794,6 +737,7 @@ include "../includes/header.php";
   </span>
 <?php } ?>
               <form method="POST">
+<input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
                 <input type="hidden" name="application_id" value="<?php echo (int)$row['id']; ?>">
                 <button type="submit" class="btn-hide" name="visibility">Hide</button>
               </form>

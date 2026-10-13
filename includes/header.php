@@ -21,16 +21,16 @@ if (session_status() === PHP_SESSION_NONE) {
   <link href="https://fonts.googleapis.com" rel="preconnect">
   <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&family=Raleway:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/job-portal/node_modules/@tabler/icons-webfont/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.44.0/dist/tabler-icons.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;500;600;700;800;900&family=Lato:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-  <link href="/job-portal/assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
-  <link href="/job-portal/assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
-  <link href="/job-portal/assets/vendor/aos/aos.css" rel="stylesheet">
-  <link href="/job-portal/assets/vendor/glightbox/css/glightbox.min.css" rel="stylesheet">
-  <link href="/job-portal/assets/vendor/swiper/swiper-bundle.min.css" rel="stylesheet">
+  <link href="<?php echo BASE_PATH; ?>/assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+  <link href="<?php echo BASE_PATH; ?>/assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+  <link href="<?php echo BASE_PATH; ?>/assets/vendor/aos/aos.css" rel="stylesheet">
+  <link href="<?php echo BASE_PATH; ?>/assets/vendor/glightbox/css/glightbox.min.css" rel="stylesheet">
+  <link href="<?php echo BASE_PATH; ?>/assets/vendor/swiper/swiper-bundle.min.css" rel="stylesheet">
 
-  <link href="/job-portal/assets/css/main.css" rel="stylesheet">
+  <link href="<?php echo BASE_PATH; ?>/assets/css/main.css" rel="stylesheet">
 
 <style>
 /* =========================================================
@@ -779,7 +779,7 @@ if (session_status() === PHP_SESSION_NONE) {
   <header id="header" class="header d-flex align-items-center sticky-top">
     <div class="container position-relative d-flex align-items-center justify-content-between">
 
-      <a href="/job-portal/index.php" class="logo d-flex align-items-center">
+      <a href="<?php echo BASE_PATH; ?>/index.php" class="logo d-flex align-items-center">
         <span class="logo-mark"><i class="bi bi-briefcase-fill"></i></span>
         <h1 class="sitename">HireHub</h1><span>.</span>
       </a>
@@ -787,34 +787,34 @@ if (session_status() === PHP_SESSION_NONE) {
       <nav id="navmenu" class="navmenu">
         <ul>
           <?php if (isset($_SESSION["user_id"]) && $_SESSION["role"] === "admin") { ?>
-            <li><a href="/job-portal/index.php">Home</a></li>
-            <li><a href="/job-portal/jobs.php">All Jobs</a></li>
-            <li><a href="/job-portal/about.php">About</a></li>
-            <li><a href="/job-portal/contact.php">Contact</a></li>
+            <li><a href="<?php echo BASE_PATH; ?>/index.php">Home</a></li>
+            <li><a href="<?php echo BASE_PATH; ?>/jobs.php">All Jobs</a></li>
+            <li><a href="<?php echo BASE_PATH; ?>/about.php">About</a></li>
+            <li><a href="<?php echo BASE_PATH; ?>/contact.php">Contact</a></li>
           <?php } ?>
 
           <?php if (isset($_SESSION["user_id"]) && $_SESSION["role"] === "employer") { ?>
-            <li><a href="/job-portal/index.php">Home</a></li>
-            <li><a href="/job-portal/jobs.php">All Jobs</a></li>
-            <li><a href="/job-portal/about.php">About</a></li>
-            <li><a href="/job-portal/contact.php">Contact</a></li>
+            <li><a href="<?php echo BASE_PATH; ?>/index.php">Home</a></li>
+            <li><a href="<?php echo BASE_PATH; ?>/jobs.php">All Jobs</a></li>
+            <li><a href="<?php echo BASE_PATH; ?>/about.php">About</a></li>
+            <li><a href="<?php echo BASE_PATH; ?>/contact.php">Contact</a></li>
           <?php } ?>
 
           <?php if (isset($_SESSION["user_id"]) && $_SESSION["role"] === "applicant") { ?>
-            <li><a href="/job-portal/index.php">Home</a></li>
-            <li><a href="/job-portal/jobs.php">All Jobs</a></li>
-            <li><a href="/job-portal/about.php">About</a></li>
-            <li><a href="/job-portal/contact.php">Contact</a></li>
+            <li><a href="<?php echo BASE_PATH; ?>/index.php">Home</a></li>
+            <li><a href="<?php echo BASE_PATH; ?>/jobs.php">All Jobs</a></li>
+            <li><a href="<?php echo BASE_PATH; ?>/about.php">About</a></li>
+            <li><a href="<?php echo BASE_PATH; ?>/contact.php">Contact</a></li>
           <?php } ?>
 
           <?php if (!isset($_SESSION["user_id"])) { ?>
-            <li><a href="/job-portal/index.php">Home</a></li>
-            <li><a href="/job-portal/jobs.php">All Jobs</a></li>
-            <li><a href="/job-portal/about.php">About</a></li>
-            <li><a href="/job-portal/contact.php">Contact</a></li>
+            <li><a href="<?php echo BASE_PATH; ?>/index.php">Home</a></li>
+            <li><a href="<?php echo BASE_PATH; ?>/jobs.php">All Jobs</a></li>
+            <li><a href="<?php echo BASE_PATH; ?>/about.php">About</a></li>
+            <li><a href="<?php echo BASE_PATH; ?>/contact.php">Contact</a></li>
             <li class="auth-actions">
-              <a class="auth-btn login-btn" href="/job-portal/login.php">Login</a>
-              <a class="auth-btn register-btn" href="/job-portal/register.php">Register</a>
+              <a class="auth-btn login-btn" href="<?php echo BASE_PATH; ?>/login.php">Login</a>
+              <a class="auth-btn register-btn" href="<?php echo BASE_PATH; ?>/register.php">Register</a>
             </li>
           <?php } else { ?>
 
@@ -831,7 +831,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
             <!-- Notification -->
             <li class="nav-notif">
-              <a href="/job-portal/notifications.php" aria-label="Notifications">
+              <a href="<?php echo BASE_PATH; ?>/notifications.php" aria-label="Notifications">
                 <i class="bi bi-bell"></i>
                 <?php if ($unreadCount > 0) { ?>
                   <span class="notification-badge">
@@ -865,53 +865,53 @@ if (session_status() === PHP_SESSION_NONE) {
                 </div>
 
                 <?php if ($_SESSION["role"] === "applicant") { ?>
-                  <a href="/job-portal/applicant/applicantDashboard.php">
+                  <a href="<?php echo BASE_PATH; ?>/applicant/applicantDashboard.php">
                     <i class="bi bi-grid-1x2"></i><span>Dashboard</span>
                   </a>
-                  <a href="/job-portal/applicant/applicant-profile.php">
+                  <a href="<?php echo BASE_PATH; ?>/applicant/applicant-profile.php">
                     <i class="bi bi-person"></i><span>Profile</span>
                   </a>
-                  <a href="/job-portal/applicant/applied-jobs.php">
+                  <a href="<?php echo BASE_PATH; ?>/applicant/applied-jobs.php">
                     <i class="bi bi-briefcase"></i><span>Applied Jobs</span>
                   </a>
-                  <a href="/job-portal/applicant/saved-jobs.php">
+                  <a href="<?php echo BASE_PATH; ?>/applicant/saved-jobs.php">
                     <i class="bi bi-bookmark"></i><span>Saved Jobs</span>
                   </a>
 
                 <?php } elseif ($_SESSION["role"] === "employer") { ?>
-                  <a href="/job-portal/employer/employerDashboard.php">
+                  <a href="<?php echo BASE_PATH; ?>/employer/employerDashboard.php">
                     <i class="bi bi-grid-1x2"></i><span>Dashboard</span>
                   </a>
-                  <a href="/job-portal/employer/company-profile.php">
+                  <a href="<?php echo BASE_PATH; ?>/employer/company-profile.php">
                     <i class="bi bi-building"></i><span>Company Profile</span>
                   </a>
-                  <a href="/job-portal/employer/add-manage-jobs.php">
+                  <a href="<?php echo BASE_PATH; ?>/employer/add-manage-jobs.php">
                     <i class="bi bi-briefcase"></i><span>Manage Jobs</span>
                   </a>
-                  <a href="/job-portal/employer/employer-applications.php">
+                  <a href="<?php echo BASE_PATH; ?>/employer/employer-applications.php">
                     <i class="bi bi-people"></i><span>Applications</span>
                   </a>
 
                 <?php } elseif ($_SESSION["role"] === "admin") { ?>
-                  <a href="/job-portal/admin/dashboard.php">
+                  <a href="<?php echo BASE_PATH; ?>/admin/dashboard.php">
                     <i class="bi bi-grid-1x2"></i><span>Dashboard</span>
                   </a>
-                  <a href="/job-portal/admin/manage-users.php">
+                  <a href="<?php echo BASE_PATH; ?>/admin/manage-users.php">
                     <i class="bi bi-people"></i><span>Manage Users</span>
                   </a>
-                  <a href="/job-portal/admin/manage-jobs.php">
+                  <a href="<?php echo BASE_PATH; ?>/admin/manage-jobs.php">
                     <i class="bi bi-briefcase"></i><span>Manage Jobs</span>
                   </a>
-                  <a href="/job-portal/admin/manage-applications.php">
+                  <a href="<?php echo BASE_PATH; ?>/admin/manage-applications.php">
                     <i class="bi bi-file-earmark-text"></i><span>Applications</span>
                   </a>
-                  <a href="/job-portal/admin/manage-categories.php">
+                  <a href="<?php echo BASE_PATH; ?>/admin/manage-categories.php">
                     <i class="bi bi-tags"></i><span>Categories</span>
                   </a>
                 <?php } ?>
 
                 <div class="panel-divider"></div>
-                <a class="logout-item" href="/job-portal/logout.php">
+                <a class="logout-item" href="<?php echo BASE_PATH; ?>/logout.php">
                   <i class="bi bi-box-arrow-right"></i><span>Logout</span>
                 </a>
               </div>

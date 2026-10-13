@@ -2,6 +2,7 @@
 session_start();
 include "../includes/config.php";
 require_once "../includes/notify.php";
+require_once "../includes/csrf.php";
 require_once "../mail/mail.php";
 
 if (!isset($_SESSION["user_id"]) || $_SESSION["role"] != "employer") {
@@ -10,6 +11,7 @@ if (!isset($_SESSION["user_id"]) || $_SESSION["role"] != "employer") {
 }
 
 $employerId = $_SESSION["user_id"];
+$error = "";
 $applicationId = isset($_GET['application_id']) ? (int)$_GET['application_id'] : (isset($_POST['application_id']) ? (int)$_POST['application_id'] : 0);
 
 $verifyQuery = "select applications.id, applications.status, users.fullname, users.email, jobs.title
@@ -28,11 +30,28 @@ if ($application['status'] != 'accepted') {
   die("You can only schedule interviews for accepted applicants.");
 }
 
+$type = $_POST['interview_type'] ?? '';
+$datetime = $_POST['scheduled_at'] ?? '';
+$location = trim($_POST['location_or_link'] ?? '');
+$notes = trim($_POST['notes'] ?? '');
+
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-  $type = $_POST['interview_type'];
-  $datetime = $_POST['scheduled_at'];
-  $location = trim($_POST['location_or_link']);
-  $notes = trim($_POST['notes']);
+  if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+    http_response_code(403);
+    die("Invalid request (CSRF). Page refresh karke dobara try karein.");
+  }
+  if (!in_array($type, ['video', 'phone', 'in-person'], true)) {
+    $error = "Invalid interview type.";
+  } elseif (!$datetime || strtotime($datetime) === false) {
+    $error = "Please select a valid date and time.";
+  } elseif (strtotime($datetime) < time()) {
+    $error = "Interview time past mein nahi ho sakta. Future ka time select karein.";
+  } elseif ($type !== 'phone' && $location === '') {
+    $error = "Please enter a meeting link or office address.";
+  }
+}
+
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && $error === '') {
 
   $upsertQuery = "insert into interviews (application_id, scheduled_by, interview_type, scheduled_at, location_or_link, notes, status)
                    values (?, ?, ?, ?, ?, ?, 'scheduled')
@@ -56,12 +75,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
       $applicantId,
       'interview_scheduled',
       "Interview scheduled for \"{$application['title']}\" on {$formattedDate}",
-      "/job-portal/applicant/applied-jobs.php"
+      BASE_PATH . "/applicant/applied-jobs.php"
     );
       sendMail(
       $application['email'],
       "Interview Scheduled ",
-      "<p>Hi {$application['fullname']}, your interview for <b>{$application['title']}</b> has been scheduled.</p>
+      "<p>Hi " . htmlspecialchars($application['fullname']) . ", your interview for <b>" . htmlspecialchars($application['title']) . "</b> has been scheduled.</p>
        <p><b>When:</b> {$formattedDate}<br>
        <b>Type:</b> " . ucfirst($type) . "<br>
        <b>Where:</b> " . htmlspecialchars($location) . "</p>" .
@@ -87,7 +106,11 @@ include "../includes/header.php";
       With <?php echo htmlspecialchars($application['fullname']); ?> for <?php echo htmlspecialchars($application['title']); ?>
     </p>
 
+    <?php if ($error !== ''): ?>
+      <div style="background:#fef2f2; color:#b91c1c; border:1px solid #fecaca; padding:10px 14px; border-radius:8px; margin-bottom:16px; font-size:14px;"><?php echo htmlspecialchars($error); ?></div>
+    <?php endif; ?>
     <form method="POST">
+      <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
       <input type="hidden" name="application_id" value="<?php echo $applicationId; ?>">
 
       <label style="font-weight:600; font-size:13.5px;">Interview Type</label>

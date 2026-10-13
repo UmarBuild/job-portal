@@ -468,7 +468,7 @@ $recentApplicationsResult = mysqli_execute_query($conn, $recentApplicationsQuery
                                 <td><span class="status-badge <?php echo htmlspecialchars($job['status']); ?>"><?php echo htmlspecialchars($job['status']); ?></span></td>
                                 <td><span class="applicants-pill"><?php echo (int)$job['applicants_count']; ?></span></td>
                                 <td><?php echo date('d M Y', strtotime($job['created_at'])); ?></td>
-                                <td><a class="row-action" href="/job-portal/job-details.php?id=<?php echo (int)$job['id']; ?>">View</a></td>
+                                <td><a class="row-action" href="<?php echo BASE_PATH; ?>/job-details.php?id=<?php echo (int)$job['id']; ?>">View</a></td>
                             </tr>
                         <?php
                         }

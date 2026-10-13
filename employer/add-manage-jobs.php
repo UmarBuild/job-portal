@@ -1,6 +1,6 @@
 <?php
 session_start();
-include "../../job-portal/includes/config.php";
+include "../includes/config.php";
 require_once "../includes/notify.php";
 require_once "../mail/mail.php";
 if (!isset($_SESSION["user_id"])) {
@@ -53,7 +53,7 @@ if (isset($_POST['post_job'])) {
         $admin['id'],
         'job_pending_review',
         "New job \"{$jobTitle}\" needs your approval",
-        "/job-portal/admin/manage-jobs.php?status=pending"
+        BASE_PATH . "/admin/manage-jobs.php?status=pending"
       );
 
       sendMail(
@@ -1110,7 +1110,7 @@ $rejectapplication = mysqli_fetch_assoc($rejectapplicationresult);
 </style>
 </head>
 <?php
-include "../../job-portal/includes/header.php";
+include "../includes/header.php";
 ?>
 
 <div class="side-body">

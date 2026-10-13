@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['interview_action'])) {
 
       sendNotification($conn, $ownApp['employer_id'], 'interview_confirmed',
           "Candidate confirmed the interview for \"{$ownApp['title']}\"",
-          "/job-portal/employer/employer-applications.php");
+          BASE_PATH . "/employer/employer-applications.php");
 
       sendMail($ownApp['employer_email'], "Interview Confirmed",
           "<p>Hi {$ownApp['employer_name']}, the candidate has confirmed the interview for <b>{$ownApp['title']}</b>.</p>");
@@ -33,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['interview_action'])) {
 
       sendNotification($conn, $ownApp['employer_id'], 'interview_reschedule_requested',
           "Candidate requested a reschedule for \"{$ownApp['title']}\"",
-          "/job-portal/employer/employer-applications.php");
+          BASE_PATH . "/employer/employer-applications.php");
 
       sendMail($ownApp['employer_email'], "Interview Reschedule Requested",
           "<p>Hi {$ownApp['employer_name']}, the candidate has requested to reschedule the interview for <b>{$ownApp['title']}</b>.</p>" .
