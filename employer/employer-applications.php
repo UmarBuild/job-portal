@@ -1,22 +1,23 @@
 <?php
 session_start();
 
-function calculateSkillMatch($applicantSkills, $jobSkills) {
-    if (empty($applicantSkills) || empty($jobSkills)) {
-        return null;
-    }
+function calculateSkillMatch($applicantSkills, $jobSkills)
+{
+  if (empty($applicantSkills) || empty($jobSkills)) {
+    return null;
+  }
 
-    $applicantArr = array_map('trim', array_map('strtolower', explode(',', $applicantSkills)));
-    $jobArr = array_map('trim', array_map('strtolower', explode(',', $jobSkills)));
-    $jobArr = array_filter($jobArr);
+  $applicantArr = array_map('trim', array_map('strtolower', explode(',', $applicantSkills)));
+  $jobArr = array_map('trim', array_map('strtolower', explode(',', $jobSkills)));
+  $jobArr = array_filter($jobArr);
 
-    if (count($jobArr) == 0) {
-        return null;
-    }
+  if (count($jobArr) == 0) {
+    return null;
+  }
 
 
-    $matched = array_intersect($jobArr, $applicantArr);
-    return round((count($matched) / count($jobArr)) * 100);
+  $matched = array_intersect($jobArr, $applicantArr);
+  return round((count($matched) / count($jobArr)) * 100);
 }
 
 include "../includes/config.php";
@@ -36,7 +37,8 @@ if ($_SESSION["role"] != "employer" && $_SESSION["role"] != "admin") {
 $userid = $_SESSION["user_id"];
 
 // ---- Security helpers ----
-function getOwnedApplication($conn, $appId, $userid, $role) {
+function getOwnedApplication($conn, $appId, $userid, $role)
+{
   // Employer sirf apni jobs ki applications dekh sakta hai, admin sab
   $sql = "select applications.id, applications.status, applications.applicant_id, users.email, users.fullname, jobs.title
           from applications
@@ -52,7 +54,8 @@ function getOwnedApplication($conn, $appId, $userid, $role) {
   return $res ? mysqli_fetch_assoc($res) : null;
 }
 
-function notifyApplicant($conn, $info, $notifMsg, $mailSubject, $mailBody) {
+function notifyApplicant($conn, $info, $notifMsg, $mailSubject, $mailBody)
+{
   sendNotification($conn, $info['applicant_id'], 'application_status', $notifMsg, BASE_PATH . "/applicant/applied-jobs.php");
   sendMail($info['email'], $mailSubject, $mailBody);
 }
@@ -77,44 +80,52 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
   if (isset($_POST["visibility"])) {
     mysqli_execute_query($conn, "update applications set visibility = 0 where id = ?", [$id]);
-
   } elseif (isset($_POST["status-accept"])) {
     if ($current == 'pending') {
       mysqli_execute_query($conn, "update applications set status = 'accepted' where id = ?", [$id]);
-      notifyApplicant($conn, $info,
+      notifyApplicant(
+        $conn,
+        $info,
         "Great news! Your application for \"{$info['title']}\" was accepted.",
         "Application Accepted",
-        "<p>Hi {$safeName}, congratulations! Your application for <b>{$safeTitle}</b> was accepted. The employer will contact you soon regarding next steps.</p>");
+        "<p>Hi {$safeName}, congratulations! Your application for <b>{$safeTitle}</b> was accepted. The employer will contact you soon regarding next steps.</p>"
+      );
     }
-
   } elseif (isset($_POST["status-reject"])) {
     if ($current == 'pending' || $current == 'accepted') {
       mysqli_execute_query($conn, "update applications set status = 'rejected' where id = ?", [$id]);
-      notifyApplicant($conn, $info,
+      notifyApplicant(
+        $conn,
+        $info,
         "Your application for \"{$info['title']}\" was not selected this time.",
         "Application Update",
-        "<p>Hi {$safeName}, unfortunately your application for <b>{$safeTitle}</b> was not selected this time.</p>");
+        "<p>Hi {$safeName}, unfortunately your application for <b>{$safeTitle}</b> was not selected this time.</p>"
+      );
     }
-
   } elseif (isset($_POST["status-hire"])) {
     // Sirf accepted applicant (jiska interview ho chuka ho) hire ho sakta hai
     if ($current == 'accepted') {
       mysqli_execute_query($conn, "update applications set status = 'hired' where id = ?", [$id]);
       mysqli_execute_query($conn, "update interviews set status = 'completed' where application_id = ?", [$id]);
-      notifyApplicant($conn, $info,
+      notifyApplicant(
+        $conn,
+        $info,
         "🎉 Congratulations! You've been hired for \"{$info['title']}\"",
         "You're Hired! 🎉",
-        "<p>Hi {$safeName}, congratulations! After the interview, you have been selected for <b>{$safeTitle}</b>. The employer will reach out with next steps.</p>");
+        "<p>Hi {$safeName}, congratulations! After the interview, you have been selected for <b>{$safeTitle}</b>. The employer will reach out with next steps.</p>"
+      );
     }
-
   } elseif (isset($_POST["status-not-selected"])) {
     if ($current == 'accepted') {
       mysqli_execute_query($conn, "update applications set status = 'rejected' where id = ?", [$id]);
       mysqli_execute_query($conn, "update interviews set status = 'completed' where application_id = ?", [$id]);
-      notifyApplicant($conn, $info,
+      notifyApplicant(
+        $conn,
+        $info,
         "Update on your application for \"{$info['title']}\"",
         "Application Update",
-        "<p>Hi {$safeName}, thank you for interviewing for <b>{$safeTitle}</b>. After careful consideration, we've decided to move forward with another candidate. We appreciate your time and wish you the best.</p>");
+        "<p>Hi {$safeName}, thank you for interviewing for <b>{$safeTitle}</b>. After careful consideration, we've decided to move forward with another candidate. We appreciate your time and wish you the best.</p>"
+      );
     }
   }
 
@@ -123,7 +134,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 }
 
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-if ($page < 1) { $page = 1; }
+if ($page < 1) {
+  $page = 1;
+}
 $perPage = 6;
 $offset = ($page - 1) * $perPage;
 
@@ -136,7 +149,7 @@ $totalRow = mysqli_fetch_assoc($countResult);
 $totalApplications = (int)$totalRow['total'];
 $totalPages = ceil($totalApplications / $perPage);
 
-$query = "select applications.*, jobs.title, jobs.location, jobs.job_type, jobs.required_skills, jobs.status as job_status,users.fullname, users.skills, users.experience, users.cv_file,interviews.scheduled_at as interview_at, interviews.interview_type, interviews.location_or_link as interview_location, interviews.status as interview_status,interviews.reschedule_reason from applications inner join jobs on applications.job_id = jobs.id inner join users on applications.applicant_id = users.id left join interviews on interviews.application_id = applications.id where jobs.user_id = ? and applications.visibility = 1 order by applications.applied_at desc limit ? offset ?";
+$query = "select applications.*, jobs.title, jobs.location, jobs.job_type, jobs.required_skills, jobs.status as job_status,users.profile_image,users.fullname, users.skills, users.experience, users.cv_file,interviews.scheduled_at as interview_at, interviews.interview_type, interviews.location_or_link as interview_location, interviews.status as interview_status,interviews.reschedule_reason from applications inner join jobs on applications.job_id = jobs.id inner join users on applications.applicant_id = users.id left join interviews on interviews.application_id = applications.id where jobs.user_id = ? and applications.visibility = 1 order by applications.applied_at desc limit ? offset ?";
 
 $result = mysqli_execute_query($conn, $query, [$userid, $perPage, $offset]);
 
@@ -519,7 +532,8 @@ include "../includes/header.php";
         grid-template-columns: 1fr;
       }
     }
-.skill-match-badge {
+
+    .skill-match-badge {
       display: inline-flex;
       align-items: center;
       gap: 5px;
@@ -529,18 +543,22 @@ include "../includes/header.php";
       border-radius: 999px;
       align-self: flex-start;
     }
+
     .skill-match-badge.high {
       background: rgba(34, 197, 94, 0.14);
       color: #166534;
     }
+
     .skill-match-badge.medium {
       background: rgba(234, 179, 8, 0.16);
       color: #854d0e;
     }
+
     .skill-match-badge.low {
       background: rgba(220, 38, 38, 0.12);
       color: #991b1b;
     }
+
     .interview-block {
       display: flex;
       flex-direction: column;
@@ -577,6 +595,7 @@ include "../includes/header.php";
       box-sizing: border-box;
       transition: all 0.3s ease;
     }
+
     .btn-schedule-interview:hover {
       color: white;
       background: linear-gradient(135deg, #0284c7, #0ea5e9);
@@ -597,7 +616,13 @@ include "../includes/header.php";
     .btn-reschedule:hover {
       text-decoration: underline;
     }
-    
+     .snapshot-avatar, .snapshot-avatar-fallback {
+      width: 50px; height: 50px; border-radius: 50%; flex-shrink: 0;
+      object-fit: cover;
+      background: var(--accent-color-soft); color: var(--accent-color-dark);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--heading-font); font-weight: 700; font-size: 26px;
+    }
   </style>
 </head>
 
@@ -628,7 +653,11 @@ include "../includes/header.php";
 
             <div class="app-card-top">
               <div class="applicant-cell">
-                <div class="applicant-avatar"><?php echo strtoupper(substr($row['fullname'], 0, 2)); ?></div>
+                <div class="applicant-avatar">
+               <?php if (!empty($row['profile_image'])) { ?>
+ <img class="snapshot-avatar" src="../uploads/profile/<?php echo htmlspecialchars($row['profile_image']); ?>" alt="Profile photo">
+<?php }else{ echo strtoupper(substr($row['fullname'], 0, 2));} ?>
+                </div>
                 <span class="applicant-name"><?php echo htmlspecialchars($row['fullname'] ?? ""); ?></span>
               </div>
               <?php if ($row['status'] == 'pending') { ?>
@@ -651,7 +680,7 @@ include "../includes/header.php";
                 </span>
               </div>
             </div>
-     <?php $matchPercent = calculateSkillMatch($row['skills'], $row['required_skills']); ?>
+            <?php $matchPercent = calculateSkillMatch($row['skills'], $row['required_skills']); ?>
             <?php if ($matchPercent !== null) { ?>
               <div class="skill-match-badge <?php echo $matchPercent >= 70 ? 'high' : ($matchPercent >= 40 ? 'medium' : 'low'); ?>">
                 <i class="bi bi-graph-up-arrow"></i> <?php echo $matchPercent; ?>% Skill Match
@@ -679,65 +708,65 @@ include "../includes/header.php";
             <div class="app-actions">
               <?php if ($row['status'] == 'pending') { ?>
                 <form method="POST">
-<input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
+                  <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
                   <input type="hidden" name="id" value="<?php echo (int)$row['id']; ?>">
                   <button type="submit" class="btn-accept" name="status-accept">Accept</button>
                   <button type="submit" class="btn-reject" name="status-reject">Reject</button>
                 </form>
-             <?php } elseif ($row['status'] == 'accepted') { ?>
-  <div class="interview-block">
-    <?php if ($row['interview_at']) { ?>
+              <?php } elseif ($row['status'] == 'accepted') { ?>
+                <div class="interview-block">
+                  <?php if ($row['interview_at']) { ?>
 
-      <?php if ($row['interview_status'] == 'confirmed') { ?>
-        <div class="interview-info-badge" style="color:#15803d; background:rgba(34,197,94,.1); border-color:rgba(34,197,94,.25);">
-          <i class="bi bi-check-circle-fill"></i>
-          <span><?php echo date("d M, h:i A", strtotime($row['interview_at'])); ?> — Confirmed</span>
-        </div>
-      <?php } elseif ($row['interview_status'] == 'reschedule_requested') { ?>
-        <div class="interview-info-badge" style="color:#b45309; background:rgba(234,179,8,.1); border-color:rgba(234,179,8,.3);">
-          <i class="bi bi-exclamation-triangle-fill"></i>
-          <span>Candidate requested reschedule<?php echo $row['reschedule_reason'] ? ': ' . htmlspecialchars($row['reschedule_reason']) : ''; ?></span>
-        </div>
-      <?php } else { ?>
-        <div class="interview-info-badge">
-          <i class="bi bi-calendar-check"></i>
-          <span><?php echo date("d M, h:i A", strtotime($row['interview_at'])); ?> — Awaiting confirmation</span>
-        </div>
-      <?php } ?>
+                    <?php if ($row['interview_status'] == 'confirmed') { ?>
+                      <div class="interview-info-badge" style="color:#15803d; background:rgba(34,197,94,.1); border-color:rgba(34,197,94,.25);">
+                        <i class="bi bi-check-circle-fill"></i>
+                        <span><?php echo date("d M, h:i A", strtotime($row['interview_at'])); ?> — Confirmed</span>
+                      </div>
+                    <?php } elseif ($row['interview_status'] == 'reschedule_requested') { ?>
+                      <div class="interview-info-badge" style="color:#b45309; background:rgba(234,179,8,.1); border-color:rgba(234,179,8,.3);">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        <span>Candidate requested reschedule<?php echo $row['reschedule_reason'] ? ': ' . htmlspecialchars($row['reschedule_reason']) : ''; ?></span>
+                      </div>
+                    <?php } else { ?>
+                      <div class="interview-info-badge">
+                        <i class="bi bi-calendar-check"></i>
+                        <span><?php echo date("d M, h:i A", strtotime($row['interview_at'])); ?> — Awaiting confirmation</span>
+                      </div>
+                    <?php } ?>
 
-      <div style="display:flex; gap:8px;">
-        <form method="POST" style="flex:1;">
-<input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
-          <input type="hidden" name="id" value="<?php echo (int)$row['id']; ?>">
-          <button type="submit" name="status-hire" class="btn-accept" style="width:100%;">
-            <i class="bi bi-check-circle"></i> Mark Hired
-          </button>
-        </form>
-        <form method="POST" style="flex:1;">
-<input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
-          <input type="hidden" name="id" value="<?php echo (int)$row['id']; ?>">
-          <button type="submit" name="status-not-selected" class="btn-reject" style="width:100%;">
-            Not Selected
-          </button>
-        </form>
-      </div>
-      <a href="schedule-interview.php?application_id=<?php echo (int)$row['id']; ?>" class="btn-reschedule">
-        <i class="bi bi-arrow-repeat"></i> Reschedule
-      </a>
+                    <div style="display:flex; gap:8px;">
+                      <form method="POST" style="flex:1;">
+                        <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
+                        <input type="hidden" name="id" value="<?php echo (int)$row['id']; ?>">
+                        <button type="submit" name="status-hire" class="btn-accept" style="width:100%;">
+                          <i class="bi bi-check-circle"></i> Mark Hired
+                        </button>
+                      </form>
+                      <form method="POST" style="flex:1;">
+                        <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
+                        <input type="hidden" name="id" value="<?php echo (int)$row['id']; ?>">
+                        <button type="submit" name="status-not-selected" class="btn-reject" style="width:100%;">
+                          Not Selected
+                        </button>
+                      </form>
+                    </div>
+                    <a href="schedule-interview.php?application_id=<?php echo (int)$row['id']; ?>" class="btn-reschedule">
+                      <i class="bi bi-arrow-repeat"></i> Reschedule
+                    </a>
 
-    <?php } else { ?>
-      <a href="schedule-interview.php?application_id=<?php echo (int)$row['id']; ?>" class="btn-schedule-interview">
-        <i class="bi bi-calendar-plus"></i> Schedule Interview
-      </a>
-    <?php } ?>
-  </div>
-<?php } elseif ($row['status'] == 'hired') { ?>
-  <span class="status-pill status-hired" style="width:100%; text-align:center;">
-    <i class="bi bi-trophy-fill"></i> Hired
-  </span>
-<?php } ?>
+                  <?php } else { ?>
+                    <a href="schedule-interview.php?application_id=<?php echo (int)$row['id']; ?>" class="btn-schedule-interview">
+                      <i class="bi bi-calendar-plus"></i> Schedule Interview
+                    </a>
+                  <?php } ?>
+                </div>
+              <?php } elseif ($row['status'] == 'hired') { ?>
+                <span class="status-pill status-hired" style="width:100%; text-align:center;">
+                  <i class="bi bi-trophy-fill"></i> Hired
+                </span>
+              <?php } ?>
               <form method="POST">
-<input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
+                <input type="hidden" name="csrf_token" value="<?php echo generateCsrfToken(); ?>">
                 <input type="hidden" name="application_id" value="<?php echo (int)$row['id']; ?>">
                 <button type="submit" class="btn-hide" name="visibility">Hide</button>
               </form>
@@ -754,7 +783,7 @@ include "../includes/header.php";
       <div class="pagination-wrap">
         <?php for ($i = 1; $i <= $totalPages; $i++) { ?>
           <a href="?page=<?php echo $i; ?>#applications-section"
-             class="page-link <?php echo ($i == $page) ? 'active' : ''; ?>">
+            class="page-link <?php echo ($i == $page) ? 'active' : ''; ?>">
             <?php echo $i; ?>
           </a>
         <?php } ?>
